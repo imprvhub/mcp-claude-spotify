@@ -1,6 +1,6 @@
 {
     "name": "mcp-claude-spotify",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Model Context Protocol server for Spotify using Claude Desktop",
     "main": "index.js",
     "type": "module",
