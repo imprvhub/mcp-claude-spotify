@@ -22,7 +22,6 @@ const PORT = 8888;
 const REDIRECT_URI = `http://127.0.0.1:${PORT}/callback`;
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
-// Token storage configuration
 const TOKEN_DIR = path.join(os.homedir(), '.spotify-mcp');
 const TOKEN_PATH = path.join(TOKEN_DIR, 'tokens.json');
 /**
@@ -79,7 +78,6 @@ function saveTokens() {
             refreshToken,
             tokenExpirationTime
         };
-
         console.error(`Token data to save: {
       accessToken: ${accessToken ? '***token exists***' : 'null'},
       refreshToken: ${refreshToken ? '***token exists***' : 'null'},
@@ -135,7 +133,6 @@ function loadTokens() {
         return false;
     }
 }
-
 const tokensLoaded = loadTokens();
 console.error(tokensLoaded ?
     `Tokens loaded successfully from ${TOKEN_PATH}` :
@@ -146,6 +143,7 @@ console.error(tokensLoaded ?
  * @param {number} port - The port number to check
  * @returns {Promise<boolean>} - True if the port is in use, false otherwise
  */
+// Second isPortInUse definition removed to fix duplicate function error
 const SearchSchema = z.object({
     query: z.string(),
     type: z.enum(["track", "album", "artist", "playlist"]).default("track"),
@@ -169,6 +167,11 @@ const GetRecommendationsSchema = z.object({
     seedArtists: z.array(z.string()).optional(),
     seedGenres: z.array(z.string()).optional(),
     limit: z.number().min(1).max(100).default(20),
+});
+const GetTopTracksSchema = z.object({
+    limit: z.number().min(1).max(50).default(20),
+    offset: z.number().min(0).default(0),
+    time_range: z.enum(["short_term", "medium_term", "long_term"]).default("medium_term"),
 });
 const server = new Server({
     name: "spotify-mcp",
@@ -290,7 +293,6 @@ async function spotifyApiRequest(endpoint, method = "GET", data = null) {
                     refreshToken = response.data.refresh_token;
                 }
                 console.error(`Token refreshed successfully, expires at ${new Date(tokenExpirationTime).toISOString()}`);
-                // Save the new tokens to file
                 try {
                     if (!fs.existsSync(TOKEN_DIR)) {
                         fs.mkdirSync(TOKEN_DIR, { recursive: true });
@@ -502,7 +504,6 @@ async function startAuthServer() {
                 reject(error);
             }
         });
-        // Start the server and open the browser
         try {
             authServer = app.listen(PORT, () => {
                 console.error(`Auth server listening at http://127.0.0.1:${PORT}`);
@@ -702,6 +703,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                         },
                     },
                 },
+            },
+            {
+                name: "get-top-tracks",
+                description: "Get the user's top played tracks over a specified time range",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        limit: {
+                            type: "number",
+                            description: "The number of tracks to return (1-50, default: 20)",
+                        },
+                        offset: {
+                            type: "number",
+                            description: "The index of the first track to return (default: 0)",
+                        },
+                        time_range: {
+                            type: "string",
+                            enum: ["short_term", "medium_term", "long_term"],
+                            description: "Over what time frame the affinities are computed. short_term = ~4 weeks, medium_term = ~6 months, long_term = several years (default: medium_term)",
+                        }
+                    }
+                }
             },
         ],
     };
@@ -1135,6 +1158,36 @@ URL: ${track.external_urls.spotify}
                 ],
             };
         }
+        if (name === "get-top-tracks") {
+            const { limit, offset, time_range } = GetTopTracksSchema.parse(args);
+            const params = new URLSearchParams();
+            params.append("limit", limit.toString());
+            params.append("offset", offset.toString());
+            params.append("time_range", time_range);
+            const topTracks = await spotifyApiRequest(`/me/top/tracks?${params}`);
+            const formattedTracks = topTracks.items
+                .map((track) => `
+Track: ${track.name}
+Artist: ${track.artists.map((a) => a.name).join(", ")}
+Album: ${track.album.name}
+ID: ${track.id}
+Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(Math.floor(track.duration_ms / 1000) % 60)
+                .toString()
+                .padStart(2, "0")}
+URL: ${track.external_urls.spotify}
+---`)
+                .join("\n");
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: topTracks.items.length > 0
+                            ? `Your top tracks:\n${formattedTracks}`
+                            : "No top tracks found for the specified time range.",
+                    },
+                ],
+            };
+        }
         throw new Error(`Unknown tool: ${name}`);
     }
     catch (error) {
@@ -1182,7 +1235,6 @@ function setupCleanupHandlers() {
         console.error('Uncaught exception:', error);
         cleanupAndExit(1);
     });
-
     process.on('SIGUSR1', () => {
         console.error('SIGUSR1 received - Forcing token reload');
         const loaded = loadTokens();
