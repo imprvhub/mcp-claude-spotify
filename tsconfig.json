@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+      "target": "ESNext",
+      "module": "ESNext",
+      "moduleResolution": "node",
+      "esModuleInterop": true,
+      "outDir": "build",
+      "strict": true,
+      "skipLibCheck": true,
+      "forceConsistentCasingInFileNames": true,
+      "typeRoots": ["./node_modules/@types", "./tests"],
+      "noImplicitAny": false
+    },
+    "include": ["*.ts"],
+    "exclude": ["node_modules", "tests", "**/*.test.ts"]
+  }
