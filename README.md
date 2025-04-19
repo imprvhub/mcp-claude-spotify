@@ -17,6 +17,7 @@ An integration that allows Claude Desktop to interact with Spotify using the Mod
 - Playback control (play, pause, next, previous)
 - Create and manage playlists
 - Get personalized recommendations
+- Access user's top played tracks over different time periods
 
 ## Requirements
 
@@ -276,6 +277,17 @@ Gets recommendations based on seeds.
 - `seedArtists`: (Optional) Array of artist IDs
 - `seedGenres`: (Optional) Array of genres
 - `limit`: (Optional) Number of recommendations (1-100)
+
+### get-top-tracks
+Gets the user's most played tracks over a specified time range.
+
+**Parameters:**
+- `limit`: (Optional) Number of tracks to return (1-50, default: 20)
+- `offset`: (Optional) Index of the first track to return (default: 0)
+- `time_range`: (Optional) Time frame for calculating affinity:
+  - `short_term`: Approximately last 4 weeks
+  - `medium_term`: Approximately last 6 months (default)
+  - `long_term`: Several years of data
 
 ## Troubleshooting
 
