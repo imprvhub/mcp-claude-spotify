@@ -374,7 +374,7 @@ All tests should be written using Jest and the ESM module format with TypeScript
 ## Security Notes
 
 - Never share your Client ID and Client Secret
-- Access token is stored only in memory during the session
+- Access token is now stored in the user's home directory at `~/.spotify-mcp/tokens.json` to enable persistence between sessions and multiple instances
 - No user data is stored on disk
 
 ### Revoking Application Access
