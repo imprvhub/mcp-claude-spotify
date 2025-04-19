@@ -197,6 +197,12 @@ const GetRecommendationsSchema = z.object({
   limit: z.number().min(1).max(100).default(20),
 });
 
+const GetTopTracksSchema = z.object({
+  limit: z.number().min(1).max(50).default(20),
+  offset: z.number().min(0).default(0),
+  time_range: z.enum(["short_term", "medium_term", "long_term"]).default("medium_term"),
+});
+
 const server = new Server(
   {
     name: "spotify-mcp",
@@ -783,6 +789,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
         },
       },
+      {
+        name: "get-top-tracks",
+        description: "Get the user's top played tracks over a specified time range",
+        inputSchema: {
+          type: "object",
+          properties: {
+            limit: {
+              type: "number",
+              description: "The number of tracks to return (1-50, default: 20)",
+            },
+            offset: {
+              type: "number",
+              description: "The index of the first track to return (default: 0)",
+            },
+            time_range: {
+              type: "string",
+              enum: ["short_term", "medium_term", "long_term"],
+              description: "Over what time frame the affinities are computed. short_term = ~4 weeks, medium_term = ~6 months, long_term = several years (default: medium_term)",
+            }
+          }
+        }
+      },
     ],
   };
 });
@@ -1288,6 +1316,45 @@ URL: ${track.external_urls.spotify}
               text: recommendations.tracks.length > 0
                 ? `Recommended tracks:\n${formattedRecommendations}`
                 : "No recommendations found.",
+            },
+          ],
+        };
+      }
+      
+      if (name === "get-top-tracks") {
+        const { limit, offset, time_range } = GetTopTracksSchema.parse(args);
+        
+        const params = new URLSearchParams();
+        params.append("limit", limit.toString());
+        params.append("offset", offset.toString());
+        params.append("time_range", time_range);
+        
+        const topTracks = await spotifyApiRequest(`/me/top/tracks?${params}`);
+        
+        const formattedTracks = topTracks.items
+          .map(
+            (track: any) => `
+Track: ${track.name}
+Artist: ${track.artists.map((a: any) => a.name).join(", ")}
+Album: ${track.album.name}
+ID: ${track.id}
+Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(
+              Math.floor(track.duration_ms / 1000) % 60
+            )
+              .toString()
+              .padStart(2, "0")}
+URL: ${track.external_urls.spotify}
+---`
+          )
+          .join("\n");
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: topTracks.items.length > 0
+                ? `Your top tracks:\n${formattedTracks}`
+                : "No top tracks found for the specified time range.",
             },
           ],
         };
