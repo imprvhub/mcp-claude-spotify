@@ -445,3 +445,7 @@ mcp-claude-spotify/
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [Spotify Web API Documentation](https://developer.spotify.com/documentation/web-api)
 - [Claude Desktop](https://claude.ai/download)
+
+## License
+
+This project is licensed under the Mozilla Public License 2.0 - see the [LICENSE](https://github.com/imprvhub/mcp-claude-spotify/blob/main/LICENSE) file for details.
