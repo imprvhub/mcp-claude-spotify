@@ -1,14 +1,11 @@
-## MCP Claude Spotify
+# MCP Claude Spotify
 
-An integration that allows Claude Desktop to interact with Spotify using the Model Context Protocol (MCP).
-
-## Demo
-
-<p>
-  <a href="https://www.youtube.com/watch?v=d_L7MaqGbbI">
-    <img src="public/assets/preview.png" width="600" alt="Claude Spotify Integration Demo">
-  </a>
-</p>
+<table style="border-collapse: collapse; width: 100%;">
+<tr>
+<td style="width: 50%; padding: 15px; vertical-align: middle; border: none;">An integration that allows Claude Desktop to interact with Spotify using the Model Context Protocol (MCP).</td>
+<td style="width: 50%; padding: 0; vertical-align: middle; border: none;"><a href="https://glama.ai/mcp/servers/@imprvhub/mcp-claude-spotify"><img src="https://glama.ai/mcp/servers/@imprvhub/mcp-claude-spotify/badge" alt="Claude Spotify MCP server" style="max-width: 100%;" /></a></td>
+</tr>
+</table>
 
 ## Features
 
@@ -17,6 +14,15 @@ An integration that allows Claude Desktop to interact with Spotify using the Mod
 - Playback control (play, pause, next, previous)
 - Create and manage playlists
 - Get personalized recommendations
+- Access user's top played tracks over different time periods
+
+## Demo
+
+<p>
+  <a href="https://www.youtube.com/watch?v=d_L7MaqGbbI">
+    <img src="public/assets/preview.png" width="600" alt="Claude Spotify Integration Demo">
+  </a>
+</p>
 
 ## Requirements
 
@@ -276,6 +282,17 @@ Gets recommendations based on seeds.
 - `seedArtists`: (Optional) Array of artist IDs
 - `seedGenres`: (Optional) Array of genres
 - `limit`: (Optional) Number of recommendations (1-100)
+
+### get-top-tracks
+Gets the user's most played tracks over a specified time range.
+
+**Parameters:**
+- `limit`: (Optional) Number of tracks to return (1-50, default: 20)
+- `offset`: (Optional) Index of the first track to return (default: 0)
+- `time_range`: (Optional) Time frame for calculating affinity:
+  - `short_term`: Approximately last 4 weeks
+  - `medium_term`: Approximately last 6 months (default)
+  - `long_term`: Several years of data
 
 ## Troubleshooting
 
