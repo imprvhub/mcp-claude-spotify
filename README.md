@@ -2,6 +2,10 @@
 
 An integration that allows Claude Desktop to interact with Spotify using the Model Context Protocol (MCP).
 
+<a href="https://glama.ai/mcp/servers/@imprvhub/mcp-claude-spotify">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@imprvhub/mcp-claude-spotify/badge" alt="Claude Spotify MCP server" />
+</a>
+
 ## Demo
 
 <p>
