@@ -19,7 +19,7 @@
 ## Demo
 
 <p>
-  <a href="https://www.youtube.com/watch?v=d_L7MaqGbbI">
+  <a href="https://www.youtube.com/watch?v=WNw5H9epZfc">
     <img src="public/assets/preview.png" width="600" alt="Claude Spotify Integration Demo">
   </a>
 </p>
