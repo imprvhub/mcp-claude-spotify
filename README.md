@@ -1,5 +1,7 @@
 # MCP Claude Spotify
 
+[![smithery badge](https://smithery.ai/badge/@imprvhub/mcp-claude-spotify)](https://smithery.ai/server/@imprvhub/mcp-claude-spotify)
+
 <table style="border-collapse: collapse; width: 100%;">
 <tr>
 <td style="width: 50%; padding: 15px; vertical-align: middle; border: none;">An integration that allows Claude Desktop to interact with Spotify using the Model Context Protocol (MCP).</td>
@@ -33,6 +35,15 @@
 
 ## Installation
 
+### Installing via Smithery
+
+To install MCP Claude Spotify for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@imprvhub/mcp-claude-spotify):
+
+```bash
+npx -y @smithery/cli install @imprvhub/mcp-claude-spotify --client claude
+```
+
+### Installing Manually
 1. Clone or download this repository:
 ```bash
 git clone https://github.com/imprvhub/mcp-claude-spotify
