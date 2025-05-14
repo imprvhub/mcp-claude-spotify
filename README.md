@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/imprvhub-mcp-claude-spotify-badge.png)](https://mseep.ai/app/imprvhub-mcp-claude-spotify)
+
 # MCP Claude Spotify
 
 [![smithery badge](https://smithery.ai/badge/@imprvhub/mcp-claude-spotify)](https://smithery.ai/server/@imprvhub/mcp-claude-spotify)
