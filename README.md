@@ -1,11 +1,16 @@
-[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/imprvhub-mcp-claude-spotify-badge.png)](https://mseep.ai/app/imprvhub-mcp-claude-spotify)
+
 
 # MCP Claude Spotify
-
+[![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/99039f16-4abd-4af8-8873-ae2844e7dd65)
 [![smithery badge](https://smithery.ai/badge/@imprvhub/mcp-claude-spotify)](https://smithery.ai/server/@imprvhub/mcp-claude-spotify)
 
 <table style="border-collapse: collapse; width: 100%;">
 <tr>
+<td style="padding: 15px; vertical-align: middle; border: none; text-align: center;">
+  <a href="https://mseep.ai/app/imprvhub-mcp-claude-spotify">
+    <img src="https://mseep.net/pr/imprvhub-mcp-claude-spotify-badge.png" alt="MseeP.ai Security Assessment Badge" />
+  </a>
+</td>  
 <td style="width: 50%; padding: 15px; vertical-align: middle; border: none;">An integration that allows Claude Desktop to interact with Spotify using the Model Context Protocol (MCP).</td>
 <td style="width: 50%; padding: 0; vertical-align: middle; border: none;"><a href="https://glama.ai/mcp/servers/@imprvhub/mcp-claude-spotify"><img src="https://glama.ai/mcp/servers/@imprvhub/mcp-claude-spotify/badge" alt="Claude Spotify MCP server" style="max-width: 100%;" /></a></td>
 </tr>
