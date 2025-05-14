@@ -480,6 +480,7 @@ mcp-claude-spotify/
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [Spotify Web API Documentation](https://developer.spotify.com/documentation/web-api)
 - [Claude Desktop](https://claude.ai/download)
+- [MCP Series](https://github.com/mcp-series)
 
 ## License
 
