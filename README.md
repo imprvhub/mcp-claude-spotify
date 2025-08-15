@@ -1,6 +1,7 @@
 
 
 # MCP Claude Spotify
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/imprvhub/mcp-claude-spotify)](https://archestra.ai/mcp-catalog/imprvhub__mcp-claude-spotify)
 [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/99039f16-4abd-4af8-8873-ae2844e7dd65)
 [![smithery badge](https://smithery.ai/badge/@imprvhub/mcp-claude-spotify)](https://smithery.ai/server/@imprvhub/mcp-claude-spotify)
 
