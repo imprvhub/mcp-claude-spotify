@@ -23,6 +23,17 @@ COPY --from=build /app/build ./build
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/public ./public
 
+# --- START SECURITY FIX ---
+# 1. Create a dedicated group and user with no privileges
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+
+# 2. Change the ownership of the application files to the new user
+RUN chown -R appuser:appgroup /app
+
+# 3. Switch to the non-root user
+USER appuser
+# --- END SECURITY FIX ---
+
 # Expose port for Spotify auth callback
 EXPOSE 8888
 
