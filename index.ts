@@ -1204,9 +1204,10 @@ Repeat: ${
       if (name === "get-user-playlists") {
         const { limit, offset } = GetUserPlaylistsSchema.parse(args);
 
-        const params = new URLSearchParams();
-        params.append("limit", limit.toString());
-        params.append("offset", offset.toString());
+        const params = new URLSearchParams({
+          limit: limit.toString(),
+          offset: offset.toString(),
+        });
 
         const playlists = await spotifyApiRequest(`/me/playlists?${params}`);
 
