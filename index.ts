@@ -203,6 +203,11 @@ const GetTopTracksSchema = z.object({
   time_range: z.enum(["short_term", "medium_term", "long_term"]).default("medium_term"),
 });
 
+const GetUserPlaylistsSchema = z.object({
+  limit: z.number().min(1).max(50).default(20),
+  offset: z.number().min(0).default(0),
+});
+
 const server = new Server(
   {
     name: "spotify-mcp",
@@ -709,7 +714,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         description: "Get a list of the user's playlists",
         inputSchema: {
           type: "object",
-          properties: {},
+          properties: {
+            limit: {
+              type: "number",
+              description: "Maximum number of playlists to return (1-50, default: 20)",
+            },
+            offset: {
+              type: "number",
+              description: "The index of the first playlist to return (default: 0)",
+            },
+          },
         },
       },
       {
@@ -1188,19 +1202,27 @@ Repeat: ${
       }
       
       if (name === "get-user-playlists") {
-        const playlists = await spotifyApiRequest("/me/playlists");
-        
+        const { limit, offset } = GetUserPlaylistsSchema.parse(args);
+
+        const params = new URLSearchParams();
+        params.append("limit", limit.toString());
+        params.append("offset", offset.toString());
+
+        const playlists = await spotifyApiRequest(`/me/playlists?${params}`);
+
         if (playlists.items.length === 0) {
           return {
             content: [
               {
                 type: "text",
-                text: "You don't have any playlists.",
+                text: offset > 0
+                  ? "No more playlists found."
+                  : "You don't have any playlists.",
               },
             ],
           };
         }
-        
+
         const formattedPlaylists = playlists.items
           .map(
             (playlist: any) => `
@@ -1213,12 +1235,15 @@ URL: ${playlist.external_urls.spotify}
 ---`
           )
           .join("\n");
-        
+
+        const paginationInfo = `
+Showing ${offset + 1}-${offset + playlists.items.length} of ${playlists.total} total playlists`;
+
         return {
           content: [
             {
               type: "text",
-              text: `Your playlists:\n${formattedPlaylists}`,
+              text: `Your playlists:${paginationInfo}\n${formattedPlaylists}`,
             },
           ],
         };
