@@ -88,6 +88,7 @@ function saveTokens() {
     }
     catch (error) {
         console.error(`Error saving tokens: ${error}`);
+        // Print the full error stack for debugging
         if (error instanceof Error && error.stack) {
             console.error(error.stack);
         }
@@ -172,6 +173,10 @@ const GetTopTracksSchema = z.object({
     limit: z.number().min(1).max(50).default(20),
     offset: z.number().min(0).default(0),
     time_range: z.enum(["short_term", "medium_term", "long_term"]).default("medium_term"),
+});
+const GetUserPlaylistsSchema = z.object({
+    limit: z.number().min(1).max(50).default(20),
+    offset: z.number().min(0).default(0),
 });
 const server = new Server({
     name: "spotify-mcp",
@@ -426,6 +431,7 @@ async function startAuthServer() {
                 redirect_uri: REDIRECT_URI,
             })}`);
         });
+        // Callback endpoint receives authorization code and exchanges it for tokens
         app.get("/callback", async (req, res) => {
             const code = req.query.code || null;
             if (!code) {
@@ -624,7 +630,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 description: "Get a list of the user's playlists",
                 inputSchema: {
                     type: "object",
-                    properties: {},
+                    properties: {
+                        limit: {
+                            type: "number",
+                            description: "Maximum number of playlists to return (1-50, default: 20)",
+                        },
+                        offset: {
+                            type: "number",
+                            description: "The index of the first playlist to return (default: 0)",
+                        },
+                    },
                 },
             },
             {
@@ -1054,13 +1069,20 @@ Repeat: ${playback.repeat_state === "off"
             };
         }
         if (name === "get-user-playlists") {
-            const playlists = await spotifyApiRequest("/me/playlists");
+            const { limit, offset } = GetUserPlaylistsSchema.parse(args);
+            const params = new URLSearchParams({
+                limit: limit.toString(),
+                offset: offset.toString(),
+            });
+            const playlists = await spotifyApiRequest(`/me/playlists?${params}`);
             if (playlists.items.length === 0) {
                 return {
                     content: [
                         {
                             type: "text",
-                            text: "You don't have any playlists.",
+                            text: offset > 0
+                                ? "No more playlists found."
+                                : "You don't have any playlists.",
                         },
                     ],
                 };
@@ -1075,11 +1097,13 @@ Public: ${playlist.public ? "Yes" : "No"}
 URL: ${playlist.external_urls.spotify}
 ---`)
                 .join("\n");
+            const paginationInfo = `
+Showing ${offset + 1}-${offset + playlists.items.length} of ${playlists.total} total playlists`;
             return {
                 content: [
                     {
                         type: "text",
-                        text: `Your playlists:\n${formattedPlaylists}`,
+                        text: `Your playlists:${paginationInfo}\n${formattedPlaylists}`,
                     },
                 ],
             };
