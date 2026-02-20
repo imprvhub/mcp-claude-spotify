@@ -13,8 +13,8 @@
         "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --testEnvironment=node --coverage"
     },
     "dependencies": {
-        "@modelcontextprotocol/sdk": "^1.25.2",
-        "axios": "^1.12.0",
+        "@modelcontextprotocol/sdk": "^1.26.0",
+        "axios": "^1.13.5",
         "dotenv": "^16.5.0",
         "express": "^4.22.1",
         "open": "^9.1.0",
