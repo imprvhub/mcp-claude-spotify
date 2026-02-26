@@ -254,7 +254,7 @@ Searches for tracks, albums, artists, or playlists.
 **Parameters:**
 - `query`: Search text
 - `type`: Type of search (track, album, artist, playlist)
-- `limit`: Number of results (1-50)
+- `limit`: Number of results (1-10, default: 5)
 
 ### play-track
 Plays a specific track.
