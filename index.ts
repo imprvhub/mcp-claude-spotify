@@ -171,7 +171,7 @@ console.error(tokensLoaded ?
 const SearchSchema = z.object({
   query: z.string(),
   type: z.enum(["track", "album", "artist", "playlist"]).default("track"),
-  limit: z.number().min(1).max(50).default(10),
+  limit: z.number().min(1).max(10).default(5),
 });
 
 const PlayTrackSchema = z.object({
@@ -207,6 +207,10 @@ const GetUserPlaylistsSchema = z.object({
   limit: z.number().min(1).max(50).default(20),
   offset: z.number().min(0).default(0),
 });
+
+function getPlaylistItemTotal(playlist: any): number | string {
+  return playlist.items?.total ?? playlist.tracks?.total ?? "N/A";
+}
 
 const server = new Server(
   {
@@ -653,7 +657,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             limit: {
               type: "number",
-              description: "Maximum number of results to return (1-50, default: 10)",
+              description: "Maximum number of results to return (1-10, default: 5)",
             },
           },
           required: ["query"],
@@ -1043,8 +1047,6 @@ URL: ${album.external_urls.spotify}
               (artist: any) => `
 Artist: ${artist.name}
 ID: ${artist.id}
-Popularity: ${artist.popularity}/100
-Followers: ${artist.followers?.total || "N/A"}
 Genres: ${artist.genres?.join(", ") || "None"}
 URL: ${artist.external_urls.spotify}
 ---`
@@ -1055,9 +1057,9 @@ URL: ${artist.external_urls.spotify}
             .map(
               (playlist: any) => `
 Playlist: ${playlist.name}
-Creator: ${playlist.owner.display_name}
+Creator: ${playlist.owner.display_name || playlist.owner.id || "Unknown"}
 ID: ${playlist.id}
-Tracks: ${playlist.tracks.total}
+Tracks: ${getPlaylistItemTotal(playlist)}
 Description: ${playlist.description || "None"}
 URL: ${playlist.external_urls.spotify}
 ---`
@@ -1229,8 +1231,8 @@ Repeat: ${
             (playlist: any) => `
 Name: ${playlist.name}
 ID: ${playlist.id}
-Owner: ${playlist.owner.display_name}
-Tracks: ${playlist.tracks.total}
+Owner: ${playlist.owner.display_name || playlist.owner.id || "Unknown"}
+Tracks: ${getPlaylistItemTotal(playlist)}
 Public: ${playlist.public ? "Yes" : "No"}
 URL: ${playlist.external_urls.spotify}
 ---`
@@ -1252,12 +1254,9 @@ Showing ${offset + 1}-${offset + playlists.items.length} of ${playlists.total} t
       
       if (name === "create-playlist") {
         const { name, description, public: isPublic } = CreatePlaylistSchema.parse(args);
-        
-        const userInfo = await spotifyApiRequest("/me");
-        const userId = userInfo.id;
-        
+
         const playlist = await spotifyApiRequest(
-          `/users/${userId}/playlists`,
+          "/me/playlists",
           "POST",
           {
             name,
@@ -1285,7 +1284,7 @@ URL: ${playlist.external_urls.spotify}`,
         const uris = trackIds.map((id) => `spotify:track:${id}`);
         
         await spotifyApiRequest(
-          `/playlists/${playlistId}/tracks`,
+          `/playlists/${playlistId}/items`,
           "POST",
           {
             uris,

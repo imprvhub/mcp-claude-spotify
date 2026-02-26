@@ -8,7 +8,7 @@ import { jest } from '@jest/globals';
 const SearchSchema = z.object({
   query: z.string(),
   type: z.enum(["track", "album", "artist", "playlist"]).default("track"),
-  limit: z.number().min(1).max(50).default(10),
+  limit: z.number().min(1).max(10).default(5),
 });
 
 const PlayTrackSchema = z.object({
@@ -42,12 +42,12 @@ describe('Zod Schema Validation Tests', () => {
       expect(result).toEqual({
         query: 'test search',
         type: 'track',
-        limit: 10
+        limit: 5
       });
     });
 
     it('should validate with all fields', () => {
-      const data = { query: 'test search', type: 'artist', limit: 20 };
+      const data = { query: 'test search', type: 'artist', limit: 10 };
       const result = SearchSchema.parse(data);
       expect(result).toEqual(data);
     });
@@ -58,7 +58,7 @@ describe('Zod Schema Validation Tests', () => {
     });
 
     it('should reject invalid limit', () => {
-      const data = { query: 'test search', limit: 51 };
+      const data = { query: 'test search', limit: 11 };
       expect(() => SearchSchema.parse(data)).toThrow();
     });
   });

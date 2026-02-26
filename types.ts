@@ -26,10 +26,6 @@ export interface SpotifyTrack {
 export interface SpotifyArtist {
   id: string;
   name: string;
-  popularity?: number;
-  followers?: {
-    total: number;
-  };
   genres?: string[];
   external_urls: {
     spotify: string;
@@ -58,9 +54,14 @@ export interface SpotifyPlaylist {
   name: string;
   description: string;
   owner: {
-    display_name: string;
+    display_name?: string;
+    id?: string;
   };
-  tracks: {
+  items?: {
+    total: number;
+  };
+  // Backward compatibility with pre-February 2026 responses.
+  tracks?: {
     total: number;
   };
   public: boolean;

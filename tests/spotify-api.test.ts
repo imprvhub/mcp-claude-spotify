@@ -159,11 +159,11 @@ describe('Spotify API Functions', () => {
 
     it('should make a request with the specified method and data', async () => {
       const data = { name: 'My Playlist' };
-      await spotifyApiRequest('/users/user-id/playlists', 'POST', data);
+      await spotifyApiRequest('/me/playlists', 'POST', data);
       
       expect(mockAxios.default).toHaveBeenCalledWith({
         method: 'POST',
-        url: `${SPOTIFY_API_BASE}/users/user-id/playlists`,
+        url: `${SPOTIFY_API_BASE}/me/playlists`,
         headers: {
           Authorization: 'Bearer test-token',
           'Content-Type': 'application/json'
