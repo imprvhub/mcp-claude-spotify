@@ -18,6 +18,7 @@ import os from "os";
 import { promisify } from "util";
 import { exec } from "child_process";
 import { ServerAlreadyRunningError } from "./errors.js";
+import { SpotifyPlaylist } from "./types.js";
 
 dotenv.config();
 
@@ -214,7 +215,7 @@ const GetUserPlaylistsSchema = z.object({
  * @param playlist - Playlist object from Spotify API.
  * @returns Total item count when available, otherwise "N/A".
  */
-function getPlaylistItemTotal(playlist: any): number | string {
+function getPlaylistItemTotal(playlist: SpotifyPlaylist): number | string {
   return playlist.items?.total ?? playlist.tracks?.total ?? "N/A";
 }
 
@@ -1061,7 +1062,7 @@ URL: ${artist.external_urls.spotify}
         } else if (type === "playlist" && results.playlists) {
           formattedResults = results.playlists.items
             .map(
-              (playlist: any) => `
+              (playlist: SpotifyPlaylist) => `
 Playlist: ${playlist.name}
 Creator: ${playlist.owner.display_name || playlist.owner.id || "Unknown"}
 ID: ${playlist.id}
@@ -1234,7 +1235,7 @@ Repeat: ${
 
         const formattedPlaylists = playlists.items
           .map(
-            (playlist: any) => `
+            (playlist: SpotifyPlaylist) => `
 Name: ${playlist.name}
 ID: ${playlist.id}
 Owner: ${playlist.owner.display_name || playlist.owner.id || "Unknown"}
@@ -1290,7 +1291,7 @@ URL: ${playlist.external_urls.spotify}`,
         const uris = trackIds.map((id) => `spotify:track:${id}`);
         
         await spotifyApiRequest(
-          `/playlists/${playlistId}/items`,
+          `/playlists/${encodeURIComponent(playlistId)}/items`,
           "POST",
           {
             uris,
