@@ -208,6 +208,12 @@ const GetUserPlaylistsSchema = z.object({
   offset: z.number().min(0).default(0),
 });
 
+/**
+ * Returns a playlist item count that supports both legacy and current API shapes.
+ *
+ * @param playlist - Playlist object from Spotify API.
+ * @returns Total item count when available, otherwise "N/A".
+ */
 function getPlaylistItemTotal(playlist: any): number | string {
   return playlist.items?.total ?? playlist.tracks?.total ?? "N/A";
 }
