@@ -205,18 +205,45 @@ describe('MCP Server', () => {
       const playHandler = jest.fn().mockResolvedValue({
         content: [{ type: 'text', text: 'Playing track' }]
       });
-      
+
       const pauseHandler = jest.fn().mockResolvedValue({
         content: [{ type: 'text', text: 'Playback paused' }]
       });
-      
+
       // Register the handlers
       mockSetRequestHandler('play-track', playHandler);
       mockSetRequestHandler('pause-playback', pauseHandler);
-      
+
       // Verify they were registered
       expect(mockSetRequestHandler).toHaveBeenCalledWith('play-track', playHandler);
       expect(mockSetRequestHandler).toHaveBeenCalledWith('pause-playback', pauseHandler);
+    });
+
+    it('should provide get-playlist-tracks functionality', () => {
+      const handler = jest.fn().mockResolvedValue({
+        content: [{ type: 'text', text: 'Playlist tracks:\nShowing 1-5 of 10 total tracks' }]
+      });
+
+      mockSetRequestHandler('get-playlist-tracks', handler);
+      expect(mockSetRequestHandler).toHaveBeenCalledWith('get-playlist-tracks', handler);
+    });
+
+    it('should provide delete-playlist functionality', () => {
+      const handler = jest.fn().mockResolvedValue({
+        content: [{ type: 'text', text: 'Playlist abc123 has been unfollowed/deleted.' }]
+      });
+
+      mockSetRequestHandler('delete-playlist', handler);
+      expect(mockSetRequestHandler).toHaveBeenCalledWith('delete-playlist', handler);
+    });
+
+    it('should provide remove-tracks-from-playlist functionality', () => {
+      const handler = jest.fn().mockResolvedValue({
+        content: [{ type: 'text', text: 'Removed 2 track(s) from playlist abc123.' }]
+      });
+
+      mockSetRequestHandler('remove-tracks-from-playlist', handler);
+      expect(mockSetRequestHandler).toHaveBeenCalledWith('remove-tracks-from-playlist', handler);
     });
   });
 });

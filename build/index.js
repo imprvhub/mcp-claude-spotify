@@ -1224,8 +1224,7 @@ URL: ${playlist.external_urls.spotify}`,
                 limit: limit.toString(),
                 offset: offset.toString(),
             });
-            const playlist = await spotifyApiRequest(`/playlists/${encodeURIComponent(playlistId)}?${params}`);
-            const result = playlist.items || playlist.tracks || playlist;
+            const result = await spotifyApiRequest(`/playlists/${encodeURIComponent(playlistId)}/tracks?${params}`);
             if (!result.items || result.items.length === 0) {
                 return {
                     content: [
