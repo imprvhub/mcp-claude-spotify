@@ -34,6 +34,21 @@ const GetRecommendationsSchema = z.object({
   limit: z.number().min(1).max(100).default(20),
 });
 
+const GetPlaylistTracksSchema = z.object({
+  playlistId: z.string(),
+  limit: z.coerce.number().min(1).max(50).default(20),
+  offset: z.coerce.number().min(0).default(0),
+});
+
+const DeletePlaylistSchema = z.object({
+  playlistId: z.string(),
+});
+
+const RemoveTracksFromPlaylistSchema = z.object({
+  playlistId: z.string(),
+  trackIds: z.array(z.string()),
+});
+
 describe('Zod Schema Validation Tests', () => {
   describe('SearchSchema', () => {
     it('should validate with required fields only', () => {
@@ -177,6 +192,95 @@ describe('Zod Schema Validation Tests', () => {
     it('should reject invalid limit', () => {
       const data = { seedTracks: ['track1'], limit: 101 };
       expect(() => GetRecommendationsSchema.parse(data)).toThrow();
+    });
+  });
+
+  describe('GetPlaylistTracksSchema', () => {
+    it('should validate with required fields only', () => {
+      const data = { playlistId: 'abc123' };
+      const result = GetPlaylistTracksSchema.parse(data);
+      expect(result).toEqual({
+        playlistId: 'abc123',
+        limit: 20,
+        offset: 0,
+      });
+    });
+
+    it('should validate with all fields', () => {
+      const data = { playlistId: 'abc123', limit: 50, offset: 10 };
+      const result = GetPlaylistTracksSchema.parse(data);
+      expect(result).toEqual(data);
+    });
+
+    it('should coerce string numbers', () => {
+      const data = { playlistId: 'abc123', limit: '30', offset: '5' };
+      const result = GetPlaylistTracksSchema.parse(data);
+      expect(result).toEqual({
+        playlistId: 'abc123',
+        limit: 30,
+        offset: 5,
+      });
+    });
+
+    it('should reject missing playlistId', () => {
+      expect(() => GetPlaylistTracksSchema.parse({})).toThrow();
+    });
+
+    it('should reject limit above 50', () => {
+      const data = { playlistId: 'abc123', limit: 51 };
+      expect(() => GetPlaylistTracksSchema.parse(data)).toThrow();
+    });
+
+    it('should reject limit below 1', () => {
+      const data = { playlistId: 'abc123', limit: 0 };
+      expect(() => GetPlaylistTracksSchema.parse(data)).toThrow();
+    });
+
+    it('should reject negative offset', () => {
+      const data = { playlistId: 'abc123', offset: -1 };
+      expect(() => GetPlaylistTracksSchema.parse(data)).toThrow();
+    });
+  });
+
+  describe('DeletePlaylistSchema', () => {
+    it('should validate with playlistId', () => {
+      const data = { playlistId: 'abc123' };
+      const result = DeletePlaylistSchema.parse(data);
+      expect(result).toEqual(data);
+    });
+
+    it('should reject missing playlistId', () => {
+      expect(() => DeletePlaylistSchema.parse({})).toThrow();
+    });
+
+    it('should reject non-string playlistId', () => {
+      expect(() => DeletePlaylistSchema.parse({ playlistId: 123 })).toThrow();
+    });
+  });
+
+  describe('RemoveTracksFromPlaylistSchema', () => {
+    it('should validate with valid data', () => {
+      const data = { playlistId: 'abc123', trackIds: ['t1', 't2'] };
+      const result = RemoveTracksFromPlaylistSchema.parse(data);
+      expect(result).toEqual(data);
+    });
+
+    it('should reject missing playlistId', () => {
+      expect(() => RemoveTracksFromPlaylistSchema.parse({ trackIds: ['t1'] })).toThrow();
+    });
+
+    it('should reject missing trackIds', () => {
+      expect(() => RemoveTracksFromPlaylistSchema.parse({ playlistId: 'abc123' })).toThrow();
+    });
+
+    it('should reject non-array trackIds', () => {
+      expect(() => RemoveTracksFromPlaylistSchema.parse({ playlistId: 'abc123', trackIds: 't1' })).toThrow();
+    });
+
+    it('should validate with empty trackIds array', () => {
+      const data = { playlistId: 'abc123', trackIds: [] };
+      const result = RemoveTracksFromPlaylistSchema.parse(data);
+      expect(result).toEqual(data);
     });
   });
 });

@@ -185,8 +185,76 @@ describe('Spotify API Functions', () => {
       mockAxios.default.mockRejectedValueOnce({
         message: 'API error'
       });
-      
+
       await expect(spotifyApiRequest('/test-endpoint')).rejects.toThrow('Spotify API error: API error');
+    });
+  });
+
+  describe('get-playlist-tracks', () => {
+    it('should call the /tracks endpoint with pagination params', async () => {
+      const mockTracks = {
+        items: [
+          { track: { id: 't1', name: 'Track 1', artists: [{ name: 'Artist' }], album: { name: 'Album' }, duration_ms: 200000, external_urls: { spotify: 'url' } } }
+        ],
+        total: 1,
+      };
+      mockAxios.default.mockResolvedValueOnce({ data: mockTracks });
+
+      const result = await spotifyApiRequest('/playlists/abc123/tracks?limit=20&offset=0');
+
+      expect(mockAxios.default).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'GET',
+          url: `${SPOTIFY_API_BASE}/playlists/abc123/tracks?limit=20&offset=0`,
+        })
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].track.name).toBe('Track 1');
+    });
+
+    it('should handle empty playlist', async () => {
+      mockAxios.default.mockResolvedValueOnce({ data: { items: [], total: 0 } });
+
+      const result = await spotifyApiRequest('/playlists/abc123/tracks?limit=20&offset=0');
+
+      expect(result.items).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+  });
+
+  describe('delete-playlist', () => {
+    it('should call DELETE on /followers endpoint', async () => {
+      mockAxios.default.mockResolvedValueOnce({ data: {} });
+
+      await spotifyApiRequest('/playlists/abc123/followers', 'DELETE');
+
+      expect(mockAxios.default).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'DELETE',
+          url: `${SPOTIFY_API_BASE}/playlists/abc123/followers`,
+          data: undefined,
+        })
+      );
+    });
+  });
+
+  describe('remove-tracks-from-playlist', () => {
+    it('should call DELETE on /items endpoint with track URIs', async () => {
+      mockAxios.default.mockResolvedValueOnce({ data: { snapshot_id: 'snap1' } });
+
+      const items = [
+        { uri: 'spotify:track:t1' },
+        { uri: 'spotify:track:t2' },
+      ];
+      await spotifyApiRequest('/playlists/abc123/items', 'DELETE', { items });
+
+      expect(mockAxios.default).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'DELETE',
+          url: `${SPOTIFY_API_BASE}/playlists/abc123/items`,
+          data: { items },
+        })
+      );
     });
   });
 });

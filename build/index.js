@@ -148,7 +148,7 @@ console.error(tokensLoaded ?
 const SearchSchema = z.object({
     query: z.string(),
     type: z.enum(["track", "album", "artist", "playlist"]).default("track"),
-    limit: z.number().min(1).max(50).default(10),
+    limit: z.number().min(1).max(10).default(5),
 });
 const PlayTrackSchema = z.object({
     trackId: z.string(),
@@ -178,6 +178,27 @@ const GetUserPlaylistsSchema = z.object({
     limit: z.number().min(1).max(50).default(20),
     offset: z.number().min(0).default(0),
 });
+const GetPlaylistTracksSchema = z.object({
+    playlistId: z.string(),
+    limit: z.coerce.number().min(1).max(50).default(20),
+    offset: z.coerce.number().min(0).default(0),
+});
+const DeletePlaylistSchema = z.object({
+    playlistId: z.string(),
+});
+const RemoveTracksFromPlaylistSchema = z.object({
+    playlistId: z.string(),
+    trackIds: z.array(z.string()),
+});
+/**
+ * Returns a playlist item count that supports both legacy and current API shapes.
+ *
+ * @param playlist - Playlist object from Spotify API.
+ * @returns Total item count when available, otherwise "N/A".
+ */
+function getPlaylistItemTotal(playlist) {
+    return playlist.items?.total ?? playlist.tracks?.total ?? "N/A";
+}
 const server = new Server({
     name: "spotify-mcp",
     version: "1.0.0",
@@ -569,7 +590,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                         },
                         limit: {
                             type: "number",
-                            description: "Maximum number of results to return (1-50, default: 10)",
+                            description: "Maximum number of results to return (1-10, default: 5)",
                         },
                     },
                     required: ["query"],
@@ -680,6 +701,63 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                                 type: "string",
                             },
                             description: "Array of Spotify track IDs to add",
+                        },
+                    },
+                    required: ["playlistId", "trackIds"],
+                },
+            },
+            {
+                name: "get-playlist-tracks",
+                description: "Get the tracks in a playlist",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        playlistId: {
+                            type: "string",
+                            description: "Spotify ID of the playlist",
+                        },
+                        limit: {
+                            type: "number",
+                            description: "Maximum number of tracks to return (1-50, default: 20)",
+                        },
+                        offset: {
+                            type: "number",
+                            description: "The index of the first track to return (default: 0)",
+                        },
+                    },
+                    required: ["playlistId"],
+                },
+            },
+            {
+                name: "delete-playlist",
+                description: "Unfollow a playlist (removes it from your library, but the playlist still exists on Spotify)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        playlistId: {
+                            type: "string",
+                            description: "Spotify ID of the playlist to delete",
+                        },
+                    },
+                    required: ["playlistId"],
+                },
+            },
+            {
+                name: "remove-tracks-from-playlist",
+                description: "Remove tracks from a playlist",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        playlistId: {
+                            type: "string",
+                            description: "Spotify ID of the playlist",
+                        },
+                        trackIds: {
+                            type: "array",
+                            items: {
+                                type: "string",
+                            },
+                            description: "Array of Spotify track IDs to remove",
                         },
                     },
                     required: ["playlistId", "trackIds"],
@@ -937,8 +1015,6 @@ URL: ${album.external_urls.spotify}
                     .map((artist) => `
 Artist: ${artist.name}
 ID: ${artist.id}
-Popularity: ${artist.popularity}/100
-Followers: ${artist.followers?.total || "N/A"}
 Genres: ${artist.genres?.join(", ") || "None"}
 URL: ${artist.external_urls.spotify}
 ---`)
@@ -948,9 +1024,9 @@ URL: ${artist.external_urls.spotify}
                 formattedResults = results.playlists.items
                     .map((playlist) => `
 Playlist: ${playlist.name}
-Creator: ${playlist.owner.display_name}
+Creator: ${playlist.owner.display_name || playlist.owner.id || "Unknown"}
 ID: ${playlist.id}
-Tracks: ${playlist.tracks.total}
+Tracks: ${getPlaylistItemTotal(playlist)}
 Description: ${playlist.description || "None"}
 URL: ${playlist.external_urls.spotify}
 ---`)
@@ -1091,8 +1167,8 @@ Repeat: ${playback.repeat_state === "off"
                 .map((playlist) => `
 Name: ${playlist.name}
 ID: ${playlist.id}
-Owner: ${playlist.owner.display_name}
-Tracks: ${playlist.tracks.total}
+Owner: ${playlist.owner.display_name || playlist.owner.id || "Unknown"}
+Tracks: ${getPlaylistItemTotal(playlist)}
 Public: ${playlist.public ? "Yes" : "No"}
 URL: ${playlist.external_urls.spotify}
 ---`)
@@ -1110,9 +1186,7 @@ Showing ${offset + 1}-${offset + playlists.items.length} of ${playlists.total} t
         }
         if (name === "create-playlist") {
             const { name, description, public: isPublic } = CreatePlaylistSchema.parse(args);
-            const userInfo = await spotifyApiRequest("/me");
-            const userId = userInfo.id;
-            const playlist = await spotifyApiRequest(`/users/${userId}/playlists`, "POST", {
+            const playlist = await spotifyApiRequest("/me/playlists", "POST", {
                 name,
                 description,
                 public: isPublic,
@@ -1132,7 +1206,7 @@ URL: ${playlist.external_urls.spotify}`,
         if (name === "add-tracks-to-playlist") {
             const { playlistId, trackIds } = AddTracksSchema.parse(args);
             const uris = trackIds.map((id) => `spotify:track:${id}`);
-            await spotifyApiRequest(`/playlists/${playlistId}/tracks`, "POST", {
+            await spotifyApiRequest(`/playlists/${encodeURIComponent(playlistId)}/items`, "POST", {
                 uris,
             });
             return {
@@ -1140,6 +1214,76 @@ URL: ${playlist.external_urls.spotify}`,
                     {
                         type: "text",
                         text: `Added ${trackIds.length} tracks to playlist with ID: ${playlistId}`,
+                    },
+                ],
+            };
+        }
+        if (name === "get-playlist-tracks") {
+            const { playlistId, limit, offset } = GetPlaylistTracksSchema.parse(args);
+            const params = new URLSearchParams({
+                limit: limit.toString(),
+                offset: offset.toString(),
+            });
+            const result = await spotifyApiRequest(`/playlists/${encodeURIComponent(playlistId)}/tracks?${params}`);
+            if (!result.items || result.items.length === 0) {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: offset > 0
+                                ? "No more tracks found."
+                                : "This playlist is empty.",
+                        },
+                    ],
+                };
+            }
+            const formattedTracks = result.items
+                .map((item, index) => {
+                const track = item.item || item.track;
+                if (!track)
+                    return `${offset + index + 1}. [Unavailable track]\n---`;
+                return `${offset + index + 1}. ${track.name}
+Artist: ${track.artists.map((a) => a.name).join(", ")}
+Album: ${track.album?.name || "N/A"}
+ID: ${track.id}
+Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(Math.floor(track.duration_ms / 1000) % 60)
+                    .toString()
+                    .padStart(2, "0")}
+URL: ${track.external_urls.spotify}
+---`;
+            })
+                .join("\n");
+            const paginationInfo = `\nShowing ${offset + 1}-${offset + result.items.length} of ${result.total} total tracks`;
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Playlist tracks:${paginationInfo}\n${formattedTracks}`,
+                    },
+                ],
+            };
+        }
+        if (name === "delete-playlist") {
+            const { playlistId } = DeletePlaylistSchema.parse(args);
+            await spotifyApiRequest(`/playlists/${encodeURIComponent(playlistId)}/followers`, "DELETE");
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Playlist ${playlistId} has been unfollowed/deleted.`,
+                    },
+                ],
+            };
+        }
+        if (name === "remove-tracks-from-playlist") {
+            const { playlistId, trackIds } = RemoveTracksFromPlaylistSchema.parse(args);
+            const items = trackIds.map((id) => ({ uri: `spotify:track:${id}` }));
+            await spotifyApiRequest(`/playlists/${encodeURIComponent(playlistId)}/items`, "DELETE", { items });
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Removed ${trackIds.length} track(s) from playlist ${playlistId}.`,
                     },
                 ],
             };
