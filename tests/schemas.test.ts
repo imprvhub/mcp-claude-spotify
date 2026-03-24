@@ -27,12 +27,7 @@ const AddTracksSchema = z.object({
   trackIds: z.array(z.string()),
 });
 
-const GetRecommendationsSchema = z.object({
-  seedTracks: z.array(z.string()).optional(),
-  seedArtists: z.array(z.string()).optional(),
-  seedGenres: z.array(z.string()).optional(),
-  limit: z.number().min(1).max(100).default(20),
-});
+
 
 const GetPlaylistTracksSchema = z.object({
   playlistId: z.string(),
@@ -146,52 +141,6 @@ describe('Zod Schema Validation Tests', () => {
     it('should reject non-array trackIds', () => {
       const data = { playlistId: '123456', trackIds: 'track1' };
       expect(() => AddTracksSchema.parse(data)).toThrow();
-    });
-  });
-
-  describe('GetRecommendationsSchema', () => {
-    it('should validate with seed tracks', () => {
-      const data = { seedTracks: ['track1', 'track2'] };
-      const result = GetRecommendationsSchema.parse(data);
-      expect(result).toEqual({
-        seedTracks: ['track1', 'track2'],
-        limit: 20
-      });
-    });
-
-    it('should validate with seed artists', () => {
-      const data = { seedArtists: ['artist1', 'artist2'], limit: 30 };
-      const result = GetRecommendationsSchema.parse(data);
-      expect(result).toEqual(data);
-    });
-
-    it('should validate with seed genres', () => {
-      const data = { seedGenres: ['rock', 'pop'] };
-      const result = GetRecommendationsSchema.parse(data);
-      expect(result).toEqual({
-        seedGenres: ['rock', 'pop'],
-        limit: 20
-      });
-    });
-
-    it('should validate with mixed seeds', () => {
-      const data = { 
-        seedTracks: ['track1'],
-        seedArtists: ['artist1'],
-        seedGenres: ['rock'] 
-      };
-      const result = GetRecommendationsSchema.parse(data);
-      expect(result).toEqual({
-        seedTracks: ['track1'],
-        seedArtists: ['artist1'],
-        seedGenres: ['rock'],
-        limit: 20
-      });
-    });
-
-    it('should reject invalid limit', () => {
-      const data = { seedTracks: ['track1'], limit: 101 };
-      expect(() => GetRecommendationsSchema.parse(data)).toThrow();
     });
   });
 

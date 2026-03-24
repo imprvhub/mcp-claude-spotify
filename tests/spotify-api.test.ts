@@ -191,7 +191,7 @@ describe('Spotify API Functions', () => {
   });
 
   describe('get-playlist-tracks', () => {
-    it('should call the /tracks endpoint with pagination params', async () => {
+    it('should call the /items endpoint with pagination params', async () => {
       const mockTracks = {
         items: [
           { track: { id: 't1', name: 'Track 1', artists: [{ name: 'Artist' }], album: { name: 'Album' }, duration_ms: 200000, external_urls: { spotify: 'url' } } }
@@ -200,12 +200,12 @@ describe('Spotify API Functions', () => {
       };
       mockAxios.default.mockResolvedValueOnce({ data: mockTracks });
 
-      const result = await spotifyApiRequest('/playlists/abc123/tracks?limit=20&offset=0');
+      const result = await spotifyApiRequest('/playlists/abc123/items?limit=20&offset=0');
 
       expect(mockAxios.default).toHaveBeenCalledWith(
         expect.objectContaining({
           method: 'GET',
-          url: `${SPOTIFY_API_BASE}/playlists/abc123/tracks?limit=20&offset=0`,
+          url: `${SPOTIFY_API_BASE}/playlists/abc123/items?limit=20&offset=0`,
         })
       );
       expect(result.items).toHaveLength(1);
@@ -215,10 +215,41 @@ describe('Spotify API Functions', () => {
     it('should handle empty playlist', async () => {
       mockAxios.default.mockResolvedValueOnce({ data: { items: [], total: 0 } });
 
-      const result = await spotifyApiRequest('/playlists/abc123/tracks?limit=20&offset=0');
+      const result = await spotifyApiRequest('/playlists/abc123/items?limit=20&offset=0');
 
       expect(result.items).toHaveLength(0);
       expect(result.total).toBe(0);
+    });
+  });
+
+  describe('get-top-tracks', () => {
+    it('should call /me/top/tracks with correct params', async () => {
+      const mockTopTracks = {
+        items: [
+          { id: 't1', name: 'Track 1', artists: [{ name: 'Artist' }], album: { name: 'Album' }, duration_ms: 200000, external_urls: { spotify: 'url' } }
+        ],
+        total: 1,
+      };
+      mockAxios.default.mockResolvedValueOnce({ data: mockTopTracks });
+
+      const result = await spotifyApiRequest('/me/top/tracks?limit=50&offset=0&time_range=short_term');
+
+      expect(mockAxios.default).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'GET',
+          url: `${SPOTIFY_API_BASE}/me/top/tracks?limit=50&offset=0&time_range=short_term`,
+        })
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Track 1');
+    });
+
+    it('should handle empty top tracks', async () => {
+      mockAxios.default.mockResolvedValueOnce({ data: { items: [], total: 0 } });
+
+      const result = await spotifyApiRequest('/me/top/tracks?limit=20&offset=0&time_range=medium_term');
+
+      expect(result.items).toHaveLength(0);
     });
   });
 
