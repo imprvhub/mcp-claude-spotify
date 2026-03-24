@@ -194,8 +194,8 @@ const UpdatePlaylistSchema = z.object({
     playlistId: z.string(),
     name: z.string().optional(),
     description: z.string().optional(),
-    public: z.boolean().optional(),
-    collaborative: z.boolean().optional(),
+    public: z.preprocess((v) => v === "true" ? true : v === "false" ? false : v, z.boolean().optional()),
+    collaborative: z.preprocess((v) => v === "true" ? true : v === "false" ? false : v, z.boolean().optional()),
 });
 const GetPlaylistCoverSchema = z.object({
     playlistId: z.string(),
@@ -471,6 +471,7 @@ async function startAuthServer() {
                 "user-library-read",
                 "user-top-read",
                 "user-read-recently-played",
+                "ugc-image-upload",
             ];
             res.redirect(`${SPOTIFY_AUTH_BASE}/authorize?${querystring.stringify({
                 response_type: "code",
@@ -1523,7 +1524,7 @@ URL: ${item.track.external_urls.spotify}
         }
         if (name === "reorder-playlist-tracks") {
             const { playlistId, rangeStart, insertBefore, rangeLength } = ReorderPlaylistTracksSchema.parse(args);
-            await spotifyApiRequest(`/playlists/${encodeURIComponent(playlistId)}/tracks`, "PUT", {
+            await spotifyApiRequest(`/playlists/${encodeURIComponent(playlistId)}/items`, "PUT", {
                 range_start: rangeStart,
                 insert_before: insertBefore,
                 range_length: rangeLength,
