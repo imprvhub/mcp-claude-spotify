@@ -191,6 +191,12 @@ const AddTracksSchema = z.object({
   trackIds: z.array(z.string()),
 });
 
+const GetRecommendationsSchema = z.object({
+  seedTracks: z.array(z.string()).optional(),
+  seedArtists: z.array(z.string()).optional(),
+  seedGenres: z.array(z.string()).optional(),
+  limit: z.coerce.number().min(1).max(100).default(20),
+});
 
 const GetTopTracksSchema = z.object({
   limit: z.coerce.number().min(1).max(50).default(20),
@@ -216,6 +222,36 @@ const DeletePlaylistSchema = z.object({
 const RemoveTracksFromPlaylistSchema = z.object({
   playlistId: z.string(),
   trackIds: z.array(z.string()),
+});
+
+const UpdatePlaylistSchema = z.object({
+  playlistId: z.string(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  public: z.preprocess((v) => v === "true" ? true : v === "false" ? false : v, z.boolean().optional()),
+  collaborative: z.preprocess((v) => v === "true" ? true : v === "false" ? false : v, z.boolean().optional()),
+});
+
+const GetPlaylistCoverSchema = z.object({
+  playlistId: z.string(),
+});
+
+const UploadPlaylistCoverSchema = z.object({
+  playlistId: z.string(),
+  imageBase64: z.string(),
+});
+
+const ReorderPlaylistTracksSchema = z.object({
+  playlistId: z.string(),
+  rangeStart: z.coerce.number().min(0),
+  insertBefore: z.coerce.number().min(0),
+  rangeLength: z.coerce.number().min(1).default(1),
+});
+
+const GetRecentlyPlayedSchema = z.object({
+  limit: z.coerce.number().min(1).max(50).default(20),
+  before: z.coerce.number().optional(),
+  after: z.coerce.number().optional(),
 });
 
 /**
@@ -510,6 +546,8 @@ async function startAuthServer(): Promise<void> {
         "playlist-modify-public",
         "user-library-read",
         "user-top-read",
+        "user-read-recently-played",
+        "ugc-image-upload",
       ];
       
       res.redirect(
@@ -845,6 +883,149 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["playlistId", "trackIds"],
+        },
+      },
+      {
+        name: "update-playlist",
+        description: "Update a playlist's name, description, public/private status, or collaborative setting",
+        inputSchema: {
+          type: "object",
+          properties: {
+            playlistId: {
+              type: "string",
+              description: "Spotify ID of the playlist",
+            },
+            name: {
+              type: "string",
+              description: "New name for the playlist (optional)",
+            },
+            description: {
+              type: "string",
+              description: "New description for the playlist (optional)",
+            },
+            public: {
+              type: "boolean",
+              description: "Whether the playlist should be public (optional)",
+            },
+            collaborative: {
+              type: "boolean",
+              description: "Whether the playlist should be collaborative. Must set public to false first (optional)",
+            },
+          },
+          required: ["playlistId"],
+        },
+      },
+      {
+        name: "get-playlist-cover",
+        description: "Get the cover image of a playlist",
+        inputSchema: {
+          type: "object",
+          properties: {
+            playlistId: {
+              type: "string",
+              description: "Spotify ID of the playlist",
+            },
+          },
+          required: ["playlistId"],
+        },
+      },
+      {
+        name: "get-recently-played",
+        description: "Get the user's recently played tracks",
+        inputSchema: {
+          type: "object",
+          properties: {
+            limit: {
+              type: "number",
+              description: "Maximum number of tracks to return (1-50, default: 20)",
+            },
+            before: {
+              type: "number",
+              description: "Unix timestamp in ms. Returns tracks played before this time (optional)",
+            },
+            after: {
+              type: "number",
+              description: "Unix timestamp in ms. Returns tracks played after this time (optional)",
+            },
+          },
+        },
+      },
+      {
+        name: "upload-playlist-cover",
+        description: "Upload a custom cover image for a playlist (base64 encoded JPEG, max 256KB)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            playlistId: {
+              type: "string",
+              description: "Spotify ID of the playlist",
+            },
+            imageBase64: {
+              type: "string",
+              description: "Base64 encoded JPEG image (max 256KB)",
+            },
+          },
+          required: ["playlistId", "imageBase64"],
+        },
+      },
+      {
+        name: "reorder-playlist-tracks",
+        description: "Reorder tracks in a playlist by moving a range of tracks to a new position",
+        inputSchema: {
+          type: "object",
+          properties: {
+            playlistId: {
+              type: "string",
+              description: "Spotify ID of the playlist",
+            },
+            rangeStart: {
+              type: "number",
+              description: "Position of the first track to move (0-based index)",
+            },
+            insertBefore: {
+              type: "number",
+              description: "Position where the tracks should be inserted (0-based index)",
+            },
+            rangeLength: {
+              type: "number",
+              description: "Number of tracks to move (default: 1)",
+            },
+          },
+          required: ["playlistId", "rangeStart", "insertBefore"],
+        },
+      },
+      {
+        name: "get-recommendations",
+        description: "Get track recommendations based on seeds",
+        inputSchema: {
+          type: "object",
+          properties: {
+            seedTracks: {
+              type: "array",
+              items: {
+                type: "string",
+              },
+              description: "Array of Spotify track IDs to use as seeds (optional)",
+            },
+            seedArtists: {
+              type: "array",
+              items: {
+                type: "string",
+              },
+              description: "Array of Spotify artist IDs to use as seeds (optional)",
+            },
+            seedGenres: {
+              type: "array",
+              items: {
+                type: "string",
+              },
+              description: "Array of genre names to use as seeds (optional)",
+            },
+            limit: {
+              type: "number",
+              description: "Maximum number of tracks to return (1-100, default: 20)",
+            },
+          },
         },
       },
       {
@@ -1432,6 +1613,193 @@ URL: ${track.external_urls.spotify}
             {
               type: "text",
               text: `Removed ${trackIds.length} track(s) from playlist ${playlistId}.`,
+            },
+          ],
+        };
+      }
+
+      if (name === "update-playlist") {
+        const { playlistId, name: playlistName, description, public: isPublic, collaborative } = UpdatePlaylistSchema.parse(args);
+
+        const body: Record<string, any> = {};
+        if (playlistName !== undefined) body.name = playlistName;
+        if (description !== undefined) body.description = description;
+        if (isPublic !== undefined) body.public = isPublic;
+        if (collaborative !== undefined) body.collaborative = collaborative;
+
+        if (Object.keys(body).length === 0) {
+          throw new Error("At least one field (name, description, public, collaborative) must be provided");
+        }
+
+        await spotifyApiRequest(
+          `/playlists/${encodeURIComponent(playlistId)}`,
+          "PUT",
+          body
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Playlist ${playlistId} updated: ${Object.keys(body).join(", ")} changed.`,
+            },
+          ],
+        };
+      }
+
+      if (name === "get-playlist-cover") {
+        const { playlistId } = GetPlaylistCoverSchema.parse(args);
+
+        const images = await spotifyApiRequest(
+          `/playlists/${encodeURIComponent(playlistId)}/images`
+        );
+
+        if (!images || images.length === 0) {
+          return {
+            content: [
+              { type: "text", text: "No cover image found for this playlist." },
+            ],
+          };
+        }
+
+        const formatted = images
+          .map((img: any) => `${img.width && img.height ? `Size: ${img.width}x${img.height}\n` : ""}URL: ${img.url}`)
+          .join("\n---\n");
+
+        return {
+          content: [
+            { type: "text", text: `Playlist cover images:\n${formatted}` },
+          ],
+        };
+      }
+
+      if (name === "get-recently-played") {
+        const { limit, before, after } = GetRecentlyPlayedSchema.parse(args);
+
+        const params = new URLSearchParams({ limit: limit.toString() });
+        if (before) params.append("before", before.toString());
+        if (after) params.append("after", after.toString());
+
+        const result = await spotifyApiRequest(`/me/player/recently-played?${params}`);
+
+        if (!result.items || result.items.length === 0) {
+          return {
+            content: [
+              { type: "text", text: "No recently played tracks found." },
+            ],
+          };
+        }
+
+        const formatted = result.items
+          .map(
+            (item: any) => `Track: ${item.track.name}
+Artist: ${item.track.artists.map((a: any) => a.name).join(", ")}
+Album: ${item.track.album?.name || "N/A"}
+ID: ${item.track.id}
+Played at: ${item.played_at}
+URL: ${item.track.external_urls.spotify}
+---`
+          )
+          .join("\n");
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Recently played tracks:\n${formatted}`,
+            },
+          ],
+        };
+      }
+
+      if (name === "upload-playlist-cover") {
+        const { playlistId, imageBase64 } = UploadPlaylistCoverSchema.parse(args);
+
+        const token = await ensureToken();
+        if (!token) {
+          throw new Error("Not authenticated. Please authorize the app first.");
+        }
+
+        await axios({
+          method: "PUT",
+          url: `${SPOTIFY_API_BASE}/playlists/${encodeURIComponent(playlistId)}/images`,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "image/jpeg",
+          },
+          data: imageBase64,
+        });
+
+        return {
+          content: [
+            { type: "text", text: `Cover image uploaded for playlist ${playlistId}.` },
+          ],
+        };
+      }
+
+      if (name === "reorder-playlist-tracks") {
+        const { playlistId, rangeStart, insertBefore, rangeLength } = ReorderPlaylistTracksSchema.parse(args);
+
+        await spotifyApiRequest(
+          `/playlists/${encodeURIComponent(playlistId)}/items`,
+          "PUT",
+          {
+            range_start: rangeStart,
+            insert_before: insertBefore,
+            range_length: rangeLength,
+          }
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Moved ${rangeLength} track(s) from position ${rangeStart} to position ${insertBefore}.`,
+            },
+          ],
+        };
+      }
+
+      if (name === "get-recommendations") {
+        const { seedTracks, seedArtists, seedGenres, limit } = GetRecommendationsSchema.parse(args);
+        
+        if (!seedTracks && !seedArtists && !seedGenres) {
+          throw new Error("At least one seed (tracks, artists, or genres) must be provided");
+        }
+        
+        const params = new URLSearchParams();
+        
+        if (limit) params.append("limit", limit.toString());
+        if (seedTracks) params.append("seed_tracks", seedTracks.join(","));
+        if (seedArtists) params.append("seed_artists", seedArtists.join(","));
+        if (seedGenres) params.append("seed_genres", seedGenres.join(","));
+        
+        const recommendations = await spotifyApiRequest(`/recommendations?${params}`);
+        
+        const formattedRecommendations = recommendations.tracks
+          .map(
+            (track: any) => `
+Track: ${track.name}
+Artist: ${track.artists.map((a: any) => a.name).join(", ")}
+Album: ${track.album.name}
+ID: ${track.id}
+Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(
+              Math.floor(track.duration_ms / 1000) % 60
+            )
+              .toString()
+              .padStart(2, "0")}
+URL: ${track.external_urls.spotify}
+---`
+          )
+          .join("\n");
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: recommendations.tracks.length > 0
+                ? `Recommended tracks:\n${formattedRecommendations}`
+                : "No recommendations found.",
             },
           ],
         };

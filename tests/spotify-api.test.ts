@@ -288,4 +288,109 @@ describe('Spotify API Functions', () => {
       );
     });
   });
+
+  describe('update-playlist', () => {
+    it('should call PUT on /playlists/{id} with body', async () => {
+      mockAxios.default.mockResolvedValueOnce({ data: {} });
+
+      const body = { name: 'New Name', description: 'New Desc' };
+      await spotifyApiRequest('/playlists/abc123', 'PUT', body);
+
+      expect(mockAxios.default).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'PUT',
+          url: `${SPOTIFY_API_BASE}/playlists/abc123`,
+          data: body,
+        })
+      );
+    });
+  });
+
+  describe('get-playlist-cover', () => {
+    it('should call GET on /playlists/{id}/images', async () => {
+      const mockImages = [{ url: 'https://example.com/cover.jpg', width: 640, height: 640 }];
+      mockAxios.default.mockResolvedValueOnce({ data: mockImages });
+
+      const result = await spotifyApiRequest('/playlists/abc123/images');
+
+      expect(mockAxios.default).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'GET',
+          url: `${SPOTIFY_API_BASE}/playlists/abc123/images`,
+        })
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].url).toBe('https://example.com/cover.jpg');
+    });
+  });
+
+  describe('get-recently-played', () => {
+    it('should call GET on /me/player/recently-played', async () => {
+      const mockResult = {
+        items: [
+          { track: { id: 't1', name: 'Track 1', artists: [{ name: 'Artist' }], album: { name: 'Album' }, duration_ms: 200000, external_urls: { spotify: 'url' } }, played_at: '2026-03-24T17:00:00Z' }
+        ],
+      };
+      mockAxios.default.mockResolvedValueOnce({ data: mockResult });
+
+      const result = await spotifyApiRequest('/me/player/recently-played?limit=5');
+
+      expect(mockAxios.default).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'GET',
+          url: `${SPOTIFY_API_BASE}/me/player/recently-played?limit=5`,
+        })
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].track.name).toBe('Track 1');
+      expect(result.items[0].played_at).toBe('2026-03-24T17:00:00Z');
+    });
+
+    it('should handle empty recently played', async () => {
+      mockAxios.default.mockResolvedValueOnce({ data: { items: [] } });
+
+      const result = await spotifyApiRequest('/me/player/recently-played?limit=20');
+
+      expect(result.items).toHaveLength(0);
+    });
+  });
+
+  describe('upload-playlist-cover', () => {
+    it('should call PUT on /playlists/{id}/images with image/jpeg content type', async () => {
+      mockAxios.default.mockResolvedValueOnce({ data: {} });
+
+      await mockAxios.default({
+        method: 'PUT',
+        url: `${SPOTIFY_API_BASE}/playlists/abc123/images`,
+        headers: { Authorization: 'Bearer mock-token', 'Content-Type': 'image/jpeg' },
+        data: '/9j/4AAQSkZJRg==',
+      });
+
+      expect(mockAxios.default).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'PUT',
+          url: `${SPOTIFY_API_BASE}/playlists/abc123/images`,
+          headers: expect.objectContaining({ 'Content-Type': 'image/jpeg' }),
+          data: '/9j/4AAQSkZJRg==',
+        })
+      );
+    });
+  });
+
+  describe('reorder-playlist-tracks', () => {
+    it('should call PUT on /playlists/{id}/tracks with reorder body', async () => {
+      mockAxios.default.mockResolvedValueOnce({ data: { snapshot_id: 'snap1' } });
+
+      const body = { range_start: 0, insert_before: 5, range_length: 2 };
+      await spotifyApiRequest('/playlists/abc123/tracks', 'PUT', body);
+
+      expect(mockAxios.default).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'PUT',
+          url: `${SPOTIFY_API_BASE}/playlists/abc123/tracks`,
+          data: body,
+        })
+      );
+    });
+  });
 });

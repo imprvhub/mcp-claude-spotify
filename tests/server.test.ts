@@ -245,5 +245,50 @@ describe('MCP Server', () => {
       mockSetRequestHandler('remove-tracks-from-playlist', handler);
       expect(mockSetRequestHandler).toHaveBeenCalledWith('remove-tracks-from-playlist', handler);
     });
+
+    it('should provide update-playlist functionality', () => {
+      const handler = jest.fn().mockResolvedValue({
+        content: [{ type: 'text', text: 'Playlist abc123 updated: name, description changed.' }]
+      });
+
+      mockSetRequestHandler('update-playlist', handler);
+      expect(mockSetRequestHandler).toHaveBeenCalledWith('update-playlist', handler);
+    });
+
+    it('should provide get-playlist-cover functionality', () => {
+      const handler = jest.fn().mockResolvedValue({
+        content: [{ type: 'text', text: 'Playlist cover images:\nURL: https://example.com/cover.jpg' }]
+      });
+
+      mockSetRequestHandler('get-playlist-cover', handler);
+      expect(mockSetRequestHandler).toHaveBeenCalledWith('get-playlist-cover', handler);
+    });
+
+    it('should provide get-recently-played functionality', () => {
+      const handler = jest.fn().mockResolvedValue({
+        content: [{ type: 'text', text: 'Recently played tracks:\nTrack: Song' }]
+      });
+
+      mockSetRequestHandler('get-recently-played', handler);
+      expect(mockSetRequestHandler).toHaveBeenCalledWith('get-recently-played', handler);
+    });
+
+    it('should provide upload-playlist-cover functionality', () => {
+      const handler = jest.fn().mockResolvedValue({
+        content: [{ type: 'text', text: 'Cover image uploaded for playlist abc123.' }]
+      });
+
+      mockSetRequestHandler('upload-playlist-cover', handler);
+      expect(mockSetRequestHandler).toHaveBeenCalledWith('upload-playlist-cover', handler);
+    });
+
+    it('should provide reorder-playlist-tracks functionality', () => {
+      const handler = jest.fn().mockResolvedValue({
+        content: [{ type: 'text', text: 'Moved 1 track(s) from position 0 to position 5.' }]
+      });
+
+      mockSetRequestHandler('reorder-playlist-tracks', handler);
+      expect(mockSetRequestHandler).toHaveBeenCalledWith('reorder-playlist-tracks', handler);
+    });
   });
 });
