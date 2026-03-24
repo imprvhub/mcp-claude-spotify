@@ -44,6 +44,20 @@ const RemoveTracksFromPlaylistSchema = z.object({
   trackIds: z.array(z.string()),
 });
 
+const UpdatePlaylistSchema = z.object({
+  playlistId: z.string(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  public: z.boolean().optional(),
+  collaborative: z.boolean().optional(),
+});
+
+const GetRecentlyPlayedSchema = z.object({
+  limit: z.coerce.number().min(1).max(50).default(20),
+  before: z.coerce.number().optional(),
+  after: z.coerce.number().optional(),
+});
+
 describe('Zod Schema Validation Tests', () => {
   describe('SearchSchema', () => {
     it('should validate with required fields only', () => {
@@ -230,6 +244,54 @@ describe('Zod Schema Validation Tests', () => {
       const data = { playlistId: 'abc123', trackIds: [] };
       const result = RemoveTracksFromPlaylistSchema.parse(data);
       expect(result).toEqual(data);
+    });
+  });
+
+  describe('UpdatePlaylistSchema', () => {
+    it('should validate with only playlistId', () => {
+      const data = { playlistId: 'abc123' };
+      const result = UpdatePlaylistSchema.parse(data);
+      expect(result).toEqual({ playlistId: 'abc123' });
+    });
+
+    it('should validate with all fields', () => {
+      const data = { playlistId: 'abc123', name: 'New Name', description: 'Desc', public: true, collaborative: false };
+      const result = UpdatePlaylistSchema.parse(data);
+      expect(result).toEqual(data);
+    });
+
+    it('should reject missing playlistId', () => {
+      expect(() => UpdatePlaylistSchema.parse({ name: 'Test' })).toThrow();
+    });
+
+    it('should reject invalid public type', () => {
+      expect(() => UpdatePlaylistSchema.parse({ playlistId: 'abc123', public: 'yes' })).toThrow();
+    });
+  });
+
+  describe('GetRecentlyPlayedSchema', () => {
+    it('should validate with defaults', () => {
+      const result = GetRecentlyPlayedSchema.parse({});
+      expect(result).toEqual({ limit: 20 });
+    });
+
+    it('should validate with all fields', () => {
+      const data = { limit: 5, before: 1711300000000, after: 1711200000000 };
+      const result = GetRecentlyPlayedSchema.parse(data);
+      expect(result).toEqual(data);
+    });
+
+    it('should coerce string limit', () => {
+      const result = GetRecentlyPlayedSchema.parse({ limit: '10' });
+      expect(result).toEqual({ limit: 10 });
+    });
+
+    it('should reject limit above 50', () => {
+      expect(() => GetRecentlyPlayedSchema.parse({ limit: 51 })).toThrow();
+    });
+
+    it('should reject limit below 1', () => {
+      expect(() => GetRecentlyPlayedSchema.parse({ limit: 0 })).toThrow();
     });
   });
 });
