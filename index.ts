@@ -232,6 +232,10 @@ const UpdatePlaylistSchema = z.object({
   collaborative: z.boolean().optional(),
 });
 
+const GetPlaylistCoverSchema = z.object({
+  playlistId: z.string(),
+});
+
 const GetRecentlyPlayedSchema = z.object({
   limit: z.coerce.number().min(1).max(50).default(20),
   before: z.coerce.number().optional(),
@@ -1587,7 +1591,7 @@ URL: ${track.external_urls.spotify}
       }
 
       if (name === "get-playlist-cover") {
-        const { playlistId } = z.object({ playlistId: z.string() }).parse(args);
+        const { playlistId } = GetPlaylistCoverSchema.parse(args);
 
         const images = await spotifyApiRequest(
           `/playlists/${encodeURIComponent(playlistId)}/images`
