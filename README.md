@@ -14,6 +14,7 @@
 </td>  
 <td style="width: 50%; padding: 15px; vertical-align: middle; border: none;">An integration that allows Claude Desktop to interact with Spotify using the Model Context Protocol (MCP).</td>
 <td style="width: 50%; padding: 0; vertical-align: middle; border: none;"><a href="https://glama.ai/mcp/servers/@imprvhub/mcp-claude-spotify"><img src="https://glama.ai/mcp/servers/@imprvhub/mcp-claude-spotify/badge" alt="Claude Spotify MCP server" style="max-width: 100%;" /></a></td>
+[![Hypercommit](https://img.shields.io/badge/Hypercommit-DB2475)](https://hypercommit.com/mcp-claude-spotify)
 </tr>
 </table>
 
