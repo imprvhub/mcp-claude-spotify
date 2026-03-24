@@ -52,6 +52,18 @@ const UpdatePlaylistSchema = z.object({
   collaborative: z.boolean().optional(),
 });
 
+const UploadPlaylistCoverSchema = z.object({
+  playlistId: z.string(),
+  imageBase64: z.string(),
+});
+
+const ReorderPlaylistTracksSchema = z.object({
+  playlistId: z.string(),
+  rangeStart: z.coerce.number().min(0),
+  insertBefore: z.coerce.number().min(0),
+  rangeLength: z.coerce.number().min(1).default(1),
+});
+
 const GetRecentlyPlayedSchema = z.object({
   limit: z.coerce.number().min(1).max(50).default(20),
   before: z.coerce.number().optional(),
@@ -292,6 +304,49 @@ describe('Zod Schema Validation Tests', () => {
 
     it('should reject limit below 1', () => {
       expect(() => GetRecentlyPlayedSchema.parse({ limit: 0 })).toThrow();
+    });
+  });
+
+  describe('UploadPlaylistCoverSchema', () => {
+    it('should validate with valid data', () => {
+      const data = { playlistId: 'abc123', imageBase64: '/9j/4AAQSkZJRg==' };
+      const result = UploadPlaylistCoverSchema.parse(data);
+      expect(result).toEqual(data);
+    });
+
+    it('should reject missing playlistId', () => {
+      expect(() => UploadPlaylistCoverSchema.parse({ imageBase64: 'data' })).toThrow();
+    });
+
+    it('should reject missing imageBase64', () => {
+      expect(() => UploadPlaylistCoverSchema.parse({ playlistId: 'abc123' })).toThrow();
+    });
+  });
+
+  describe('ReorderPlaylistTracksSchema', () => {
+    it('should validate with required fields and default rangeLength', () => {
+      const data = { playlistId: 'abc123', rangeStart: 0, insertBefore: 5 };
+      const result = ReorderPlaylistTracksSchema.parse(data);
+      expect(result).toEqual({ ...data, rangeLength: 1 });
+    });
+
+    it('should validate with all fields', () => {
+      const data = { playlistId: 'abc123', rangeStart: 2, insertBefore: 0, rangeLength: 3 };
+      const result = ReorderPlaylistTracksSchema.parse(data);
+      expect(result).toEqual(data);
+    });
+
+    it('should coerce string numbers', () => {
+      const result = ReorderPlaylistTracksSchema.parse({ playlistId: 'abc123', rangeStart: '1', insertBefore: '5' });
+      expect(result).toEqual({ playlistId: 'abc123', rangeStart: 1, insertBefore: 5, rangeLength: 1 });
+    });
+
+    it('should reject negative rangeStart', () => {
+      expect(() => ReorderPlaylistTracksSchema.parse({ playlistId: 'abc123', rangeStart: -1, insertBefore: 0 })).toThrow();
+    });
+
+    it('should reject rangeLength below 1', () => {
+      expect(() => ReorderPlaylistTracksSchema.parse({ playlistId: 'abc123', rangeStart: 0, insertBefore: 5, rangeLength: 0 })).toThrow();
     });
   });
 });

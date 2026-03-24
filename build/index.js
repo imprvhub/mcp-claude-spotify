@@ -200,6 +200,16 @@ const UpdatePlaylistSchema = z.object({
 const GetPlaylistCoverSchema = z.object({
     playlistId: z.string(),
 });
+const UploadPlaylistCoverSchema = z.object({
+    playlistId: z.string(),
+    imageBase64: z.string(),
+});
+const ReorderPlaylistTracksSchema = z.object({
+    playlistId: z.string(),
+    rangeStart: z.coerce.number().min(0),
+    insertBefore: z.coerce.number().min(0),
+    rangeLength: z.coerce.number().min(1).default(1),
+});
 const GetRecentlyPlayedSchema = z.object({
     limit: z.coerce.number().min(1).max(50).default(20),
     before: z.coerce.number().optional(),
@@ -846,6 +856,50 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 },
             },
             {
+                name: "upload-playlist-cover",
+                description: "Upload a custom cover image for a playlist (base64 encoded JPEG, max 256KB)",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        playlistId: {
+                            type: "string",
+                            description: "Spotify ID of the playlist",
+                        },
+                        imageBase64: {
+                            type: "string",
+                            description: "Base64 encoded JPEG image (max 256KB)",
+                        },
+                    },
+                    required: ["playlistId", "imageBase64"],
+                },
+            },
+            {
+                name: "reorder-playlist-tracks",
+                description: "Reorder tracks in a playlist by moving a range of tracks to a new position",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        playlistId: {
+                            type: "string",
+                            description: "Spotify ID of the playlist",
+                        },
+                        rangeStart: {
+                            type: "number",
+                            description: "Position of the first track to move (0-based index)",
+                        },
+                        insertBefore: {
+                            type: "number",
+                            description: "Position where the tracks should be inserted (0-based index)",
+                        },
+                        rangeLength: {
+                            type: "number",
+                            description: "Number of tracks to move (default: 1)",
+                        },
+                    },
+                    required: ["playlistId", "rangeStart", "insertBefore"],
+                },
+            },
+            {
                 name: "get-recommendations",
                 description: "Get track recommendations based on seeds",
                 inputSchema: {
@@ -1442,6 +1496,43 @@ URL: ${item.track.external_urls.spotify}
                     {
                         type: "text",
                         text: `Recently played tracks:\n${formatted}`,
+                    },
+                ],
+            };
+        }
+        if (name === "upload-playlist-cover") {
+            const { playlistId, imageBase64 } = UploadPlaylistCoverSchema.parse(args);
+            const token = await ensureToken();
+            if (!token) {
+                throw new Error("Not authenticated. Please authorize the app first.");
+            }
+            await axios({
+                method: "PUT",
+                url: `${SPOTIFY_API_BASE}/playlists/${encodeURIComponent(playlistId)}/images`,
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "image/jpeg",
+                },
+                data: imageBase64,
+            });
+            return {
+                content: [
+                    { type: "text", text: `Cover image uploaded for playlist ${playlistId}.` },
+                ],
+            };
+        }
+        if (name === "reorder-playlist-tracks") {
+            const { playlistId, rangeStart, insertBefore, rangeLength } = ReorderPlaylistTracksSchema.parse(args);
+            await spotifyApiRequest(`/playlists/${encodeURIComponent(playlistId)}/tracks`, "PUT", {
+                range_start: rangeStart,
+                insert_before: insertBefore,
+                range_length: rangeLength,
+            });
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Moved ${rangeLength} track(s) from position ${rangeStart} to position ${insertBefore}.`,
                     },
                 ],
             };

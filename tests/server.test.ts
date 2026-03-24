@@ -272,5 +272,23 @@ describe('MCP Server', () => {
       mockSetRequestHandler('get-recently-played', handler);
       expect(mockSetRequestHandler).toHaveBeenCalledWith('get-recently-played', handler);
     });
+
+    it('should provide upload-playlist-cover functionality', () => {
+      const handler = jest.fn().mockResolvedValue({
+        content: [{ type: 'text', text: 'Cover image uploaded for playlist abc123.' }]
+      });
+
+      mockSetRequestHandler('upload-playlist-cover', handler);
+      expect(mockSetRequestHandler).toHaveBeenCalledWith('upload-playlist-cover', handler);
+    });
+
+    it('should provide reorder-playlist-tracks functionality', () => {
+      const handler = jest.fn().mockResolvedValue({
+        content: [{ type: 'text', text: 'Moved 1 track(s) from position 0 to position 5.' }]
+      });
+
+      mockSetRequestHandler('reorder-playlist-tracks', handler);
+      expect(mockSetRequestHandler).toHaveBeenCalledWith('reorder-playlist-tracks', handler);
+    });
   });
 });

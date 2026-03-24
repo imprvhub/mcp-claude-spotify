@@ -354,4 +354,43 @@ describe('Spotify API Functions', () => {
       expect(result.items).toHaveLength(0);
     });
   });
+
+  describe('upload-playlist-cover', () => {
+    it('should call PUT on /playlists/{id}/images with image/jpeg content type', async () => {
+      mockAxios.default.mockResolvedValueOnce({ data: {} });
+
+      await mockAxios.default({
+        method: 'PUT',
+        url: `${SPOTIFY_API_BASE}/playlists/abc123/images`,
+        headers: { Authorization: 'Bearer mock-token', 'Content-Type': 'image/jpeg' },
+        data: '/9j/4AAQSkZJRg==',
+      });
+
+      expect(mockAxios.default).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'PUT',
+          url: `${SPOTIFY_API_BASE}/playlists/abc123/images`,
+          headers: expect.objectContaining({ 'Content-Type': 'image/jpeg' }),
+          data: '/9j/4AAQSkZJRg==',
+        })
+      );
+    });
+  });
+
+  describe('reorder-playlist-tracks', () => {
+    it('should call PUT on /playlists/{id}/tracks with reorder body', async () => {
+      mockAxios.default.mockResolvedValueOnce({ data: { snapshot_id: 'snap1' } });
+
+      const body = { range_start: 0, insert_before: 5, range_length: 2 };
+      await spotifyApiRequest('/playlists/abc123/tracks', 'PUT', body);
+
+      expect(mockAxios.default).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'PUT',
+          url: `${SPOTIFY_API_BASE}/playlists/abc123/tracks`,
+          data: body,
+        })
+      );
+    });
+  });
 });
