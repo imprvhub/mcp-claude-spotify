@@ -96,7 +96,7 @@ function saveTokens() {
       refreshToken: ${refreshToken ? '***token exists***' : 'null'},
       tokenExpirationTime: ${tokenExpirationTime}
     }`);
-    
+
     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenData, null, 2));
     console.error(`Tokens successfully saved to ${TOKEN_PATH}`);
   } catch (error) {
@@ -115,37 +115,37 @@ function saveTokens() {
 function loadTokens(): boolean {
   try {
     console.error(`Attempting to load tokens from ${TOKEN_PATH}`);
-    
+
     if (!fs.existsSync(TOKEN_PATH)) {
       console.error(`Token file does not exist: ${TOKEN_PATH}`);
       return false;
     }
-    
+
     const rawData = fs.readFileSync(TOKEN_PATH, 'utf-8');
     console.error(`Raw token data loaded (${rawData.length} bytes)`);
-    
+
     if (rawData.trim() === '') {
       console.error(`Token file is empty`);
       return false;
     }
-    
+
     const tokenData = JSON.parse(rawData);
-    
+
     if (!tokenData.accessToken || !tokenData.refreshToken) {
       console.error(`Token data is incomplete in file`);
       return false;
     }
-    
+
     accessToken = tokenData.accessToken;
     refreshToken = tokenData.refreshToken;
     tokenExpirationTime = tokenData.tokenExpirationTime;
-    
+
     console.error(`Tokens loaded successfully: {
       accessToken: ***token masked***,
       refreshToken: ***token masked***,
       tokenExpirationTime: ${tokenExpirationTime} (expires ${new Date(tokenExpirationTime).toISOString()})
     }`);
-    
+
     return true;
   } catch (error) {
     console.error(`Error loading tokens: ${error}`);
@@ -157,8 +157,8 @@ function loadTokens(): boolean {
 }
 
 const tokensLoaded = loadTokens();
-console.error(tokensLoaded ? 
-  `Tokens loaded successfully from ${TOKEN_PATH}` : 
+console.error(tokensLoaded ?
+  `Tokens loaded successfully from ${TOKEN_PATH}` :
   `No tokens found at ${TOKEN_PATH}, will need to authenticate`);
 
 /**
@@ -267,7 +267,7 @@ function getPlaylistItemTotal(playlist: SpotifyPlaylist): number | string {
 const server = new Server(
   {
     name: "spotify-mcp",
-    version: "0.4.0",
+    version: "0.5.0",
   },
   {
     capabilities: {
@@ -315,16 +315,16 @@ async function ensureToken(): Promise<string | null> {
           },
         }
       );
-      
+
       accessToken = response.data.access_token;
       tokenExpirationTime = now + response.data.expires_in * 1000;
-      
+
       if (response.data.refresh_token) {
         refreshToken = response.data.refresh_token;
       }
 
       saveTokens();
-      
+
       console.error(`Token refreshed successfully, new token expires in ${response.data.expires_in} seconds`);
       return accessToken;
     } catch (error: any) {
@@ -336,7 +336,7 @@ async function ensureToken(): Promise<string | null> {
       saveTokens();
     }
   }
-  
+
   return null;
 }
 
@@ -361,7 +361,7 @@ async function spotifyApiRequest(endpoint: string, method: string = "GET", data:
       if (fs.existsSync(TOKEN_PATH)) {
         const fileContent = fs.readFileSync(TOKEN_PATH, 'utf8');
         console.error(`Read ${fileContent.length} bytes from token file`);
-        
+
         if (fileContent.trim() !== '') {
           const tokenData = JSON.parse(fileContent);
           accessToken = tokenData.accessToken;
@@ -404,27 +404,27 @@ async function spotifyApiRequest(endpoint: string, method: string = "GET", data:
             },
           }
         );
-        
+
         accessToken = response.data.access_token;
         tokenExpirationTime = now + response.data.expires_in * 1000;
-        
+
         if (response.data.refresh_token) {
           refreshToken = response.data.refresh_token;
         }
-        
+
         console.error(`Token refreshed successfully, expires at ${new Date(tokenExpirationTime).toISOString()}`);
-        
+
         try {
           if (!fs.existsSync(TOKEN_DIR)) {
             fs.mkdirSync(TOKEN_DIR, { recursive: true });
           }
-          
+
           const tokenData = JSON.stringify({
             accessToken,
             refreshToken,
             tokenExpirationTime
           }, null, 2);
-          
+
           fs.writeFileSync(TOKEN_PATH, tokenData);
           console.error(`Refreshed tokens saved to file`);
         } catch (saveError) {
@@ -444,9 +444,9 @@ async function spotifyApiRequest(endpoint: string, method: string = "GET", data:
       throw new Error("Authentication expired. Please authenticate again.");
     }
   }
-  
+
   console.error(`Making authenticated request to ${endpoint}`);
-  
+
   try {
     const response = await axios({
       method,
@@ -457,7 +457,7 @@ async function spotifyApiRequest(endpoint: string, method: string = "GET", data:
       },
       data: data ? data : undefined,
     });
-    
+
     console.error(`Request to ${endpoint} succeeded`);
     return response.data;
   } catch (error: any) {
@@ -465,7 +465,7 @@ async function spotifyApiRequest(endpoint: string, method: string = "GET", data:
     if (error.response) {
       console.error(`Status: ${error.response.status}`);
       console.error(`Data:`, error.response.data);
-      
+
       if (error.response.status === 401) {
         console.error(`Token appears to be invalid, clearing tokens`);
         accessToken = null;
@@ -502,7 +502,7 @@ async function startAuthServer(): Promise<void> {
   const portInUse = await isPortInUse(PORT);
   if (portInUse) {
     console.error(`Port ${PORT} is already in use, attempting to use existing server`);
-    
+
     console.error(`Attempting to kill any process on port ${PORT}...`);
     try {
       if (process.platform === 'win32') {
@@ -529,10 +529,10 @@ async function startAuthServer(): Promise<void> {
       }
     }
   }
-  
+
   return new Promise((resolve, reject) => {
     const app = express();
-    
+
     // Login endpoint redirects to Spotify authorization page
     app.get("/login", (req, res) => {
       const scopes = [
@@ -549,7 +549,7 @@ async function startAuthServer(): Promise<void> {
         "user-read-recently-played",
         "ugc-image-upload",
       ];
-      
+
       res.redirect(
         `${SPOTIFY_AUTH_BASE}/authorize?${querystring.stringify({
           response_type: "code",
@@ -559,17 +559,17 @@ async function startAuthServer(): Promise<void> {
         })}`
       );
     });
-    
+
     // Callback endpoint receives authorization code and exchanges it for tokens
     app.get("/callback", async (req, res) => {
       const code = req.query.code || null;
-      
+
       if (!code) {
         res.send("Authentication failed: No code provided");
         reject(new Error("Authentication failed: No code provided"));
         return;
       }
-      
+
       try {
         console.error(`Received authorization code, exchanging for tokens...`);
         const response = await axios.post(
@@ -588,7 +588,7 @@ async function startAuthServer(): Promise<void> {
             },
           }
         );
-        
+
         console.error(`Token exchange successful, got access_token and refresh_token`);
 
         accessToken = response.data.access_token;
@@ -610,10 +610,10 @@ async function startAuthServer(): Promise<void> {
             refreshToken,
             tokenExpirationTime
           }, null, 2);
-          
+
           console.error(`Writing ${tokenData.length} bytes to ${TOKEN_PATH}`);
           fs.writeFileSync(TOKEN_PATH, tokenData);
-          
+
           if (fs.existsSync(TOKEN_PATH)) {
             const stats = fs.statSync(TOKEN_PATH);
             console.error(`Token file successfully written: ${stats.size} bytes`);
@@ -634,12 +634,12 @@ async function startAuthServer(): Promise<void> {
               "Content-Type": "application/json",
             },
           });
-          
+
           console.error(`Token verification successful! Authenticated as: ${verifyResponse.data.display_name}`);
         } catch (verifyError) {
           console.error(`Token verification failed: ${verifyError}`);
         }
-        
+
         res.send("Authentication successful! You can close this window now.");
         resolve();
       } catch (error: any) {
@@ -651,13 +651,13 @@ async function startAuthServer(): Promise<void> {
         reject(error);
       }
     });
-    
+
     try {
       authServer = app.listen(PORT, () => {
         console.error(`Auth server listening at http://127.0.0.1:${PORT}`);
         open(`http://127.0.0.1:${PORT}/login`);
       });
-      
+
       // Handle server errors
       authServer.on('error', (error: any) => {
         if (error.code === 'EADDRINUSE') {
@@ -668,7 +668,7 @@ async function startAuthServer(): Promise<void> {
           reject(error);
         }
       });
-      
+
       // Clean up server when process is about to exit
       process.on('beforeExit', () => {
         if (authServer) {
@@ -1058,7 +1058,7 @@ server.setRequestHandler(
   CallToolRequestSchema,
   async (request: CallToolRequest) => {
     const { name, arguments: args } = request.params;
-    
+
     try {
       if (name === "auth-spotify") {
         try {
@@ -1075,7 +1075,7 @@ server.setRequestHandler(
                     "Content-Type": "application/json",
                   },
                 });
-                
+
                 console.error(`Current token is valid! Already authenticated as: ${testResponse.data.display_name}`);
                 return {
                   content: [
@@ -1090,19 +1090,19 @@ server.setRequestHandler(
               }
             } else {
               console.error(`No access token in memory, checking token file...`);
-              
+
               try {
                 if (fs.existsSync(TOKEN_PATH)) {
                   console.error(`Token file exists, attempting to load...`);
                   const fileContent = fs.readFileSync(TOKEN_PATH, 'utf8');
-                  
+
                   if (fileContent && fileContent.trim() !== '') {
                     console.error(`Found token file with content, parsing...`);
                     const tokenData = JSON.parse(fileContent);
                     accessToken = tokenData.accessToken;
                     refreshToken = tokenData.refreshToken;
                     tokenExpirationTime = tokenData.tokenExpirationTime;
-                    
+
                     try {
                       console.error(`Testing loaded token...`);
                       const testResponse = await axios({
@@ -1113,7 +1113,7 @@ server.setRequestHandler(
                           "Content-Type": "application/json",
                         },
                       });
-                      
+
                       console.error(`Loaded token is valid! Authenticated as: ${testResponse.data.display_name}`);
                       return {
                         content: [
@@ -1138,13 +1138,13 @@ server.setRequestHandler(
 
           console.error('Starting authentication process...');
           await startAuthServer();
-          
+
           if (!accessToken || !refreshToken) {
             throw new Error("Authentication failed: No tokens received");
           }
-          
+
           console.error(`Authentication successful, received tokens`);
-          
+
           try {
             console.error(`Testing new tokens...`);
             const testResponse = await axios({
@@ -1155,7 +1155,7 @@ server.setRequestHandler(
                 "Content-Type": "application/json",
               },
             });
-            
+
             console.error(`New tokens are valid! Authenticated as: ${testResponse.data.display_name}`);
             return {
               content: [
@@ -1169,11 +1169,11 @@ server.setRequestHandler(
             console.error(`New tokens failed verification: ${newTokenError}`);
             throw new Error("Authentication succeeded but tokens are invalid");
           }
-          
+
         } catch (error: any) {
           if (error instanceof ServerAlreadyRunningError) {
             console.error(`Server already running error: ${error.message}`);
-            
+
             try {
               if (accessToken) {
                 const testResponse = await axios({
@@ -1184,7 +1184,7 @@ server.setRequestHandler(
                     "Content-Type": "application/json",
                   },
                 });
-                
+
                 return {
                   content: [
                     {
@@ -1196,7 +1196,7 @@ server.setRequestHandler(
               }
             } catch (testError) {
             }
-            
+
             return {
               content: [
                 {
@@ -1206,7 +1206,7 @@ server.setRequestHandler(
               ],
             };
           }
-          
+
           console.error(`Authentication error: ${error.message}`);
           return {
             content: [
@@ -1218,10 +1218,10 @@ server.setRequestHandler(
           };
         }
       }
-      
+
       if (name === "search-spotify") {
         const { query, type, limit } = SearchSchema.parse(args);
-        
+
         const results = await spotifyApiRequest(
           `/search?${querystring.stringify({
             q: query,
@@ -1229,9 +1229,9 @@ server.setRequestHandler(
             limit,
           })}`
         );
-        
+
         let formattedResults = "";
-        
+
         if (type === "track" && results.tracks) {
           formattedResults = results.tracks.items
             .map(
@@ -1241,10 +1241,10 @@ Artist: ${track.artists.map((a: any) => a.name).join(", ")}
 Album: ${track.album.name}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(
-                Math.floor(track.duration_ms / 1000) % 60
-              )
-                .toString()
-                .padStart(2, "0")}
+                  Math.floor(track.duration_ms / 1000) % 60
+                )
+                  .toString()
+                  .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`
             )
@@ -1287,7 +1287,7 @@ URL: ${playlist.external_urls.spotify}
             )
             .join("\n");
         }
-        
+
         return {
           content: [
             {
@@ -1299,10 +1299,10 @@ URL: ${playlist.external_urls.spotify}
           ],
         };
       }
-      
+
       if (name === "get-current-playback") {
         const playback = await spotifyApiRequest("/me/player");
-        
+
         if (!playback) {
           return {
             content: [
@@ -1313,9 +1313,9 @@ URL: ${playlist.external_urls.spotify}
             ],
           };
         }
-        
+
         let responseText = "";
-        
+
         if (playback.item) {
           responseText = `
 Currently ${playback.is_playing ? "Playing" : "Paused"}:
@@ -1323,39 +1323,37 @@ Track: ${playback.item.name}
 Artist: ${playback.item.artists.map((a: any) => a.name).join(", ")}
 Album: ${playback.item.album.name}
 Progress: ${Math.floor(playback.progress_ms / 1000 / 60)}:${(
-            Math.floor(playback.progress_ms / 1000) % 60
-          )
-            .toString()
-            .padStart(2, "0")} / ${Math.floor(
-            playback.item.duration_ms / 1000 / 60
-          )}:${(Math.floor(playback.item.duration_ms / 1000) % 60)
-            .toString()
-            .padStart(2, "0")}
+              Math.floor(playback.progress_ms / 1000) % 60
+            )
+              .toString()
+              .padStart(2, "0")} / ${Math.floor(
+                playback.item.duration_ms / 1000 / 60
+              )}:${(Math.floor(playback.item.duration_ms / 1000) % 60)
+                .toString()
+                .padStart(2, "0")}
 Device: ${playback.device.name}
 Volume: ${playback.device.volume_percent}%
 Shuffle: ${playback.shuffle_state ? "On" : "Off"}
-Repeat: ${
-            playback.repeat_state === "off"
+Repeat: ${playback.repeat_state === "off"
               ? "Off"
               : playback.repeat_state === "context"
-              ? "Context"
-              : "Track"
-          }`;
+                ? "Context"
+                : "Track"
+            }`;
         } else {
           responseText = `
 No track currently playing.
 Device: ${playback.device.name}
 Volume: ${playback.device.volume_percent}%
 Shuffle: ${playback.shuffle_state ? "On" : "Off"}
-Repeat: ${
-            playback.repeat_state === "off"
+Repeat: ${playback.repeat_state === "off"
               ? "Off"
               : playback.repeat_state === "context"
-              ? "Context"
-              : "Track"
-          }`;
+                ? "Context"
+                : "Track"
+            }`;
         }
-        
+
         return {
           content: [
             {
@@ -1365,16 +1363,16 @@ Repeat: ${
           ],
         };
       }
-      
+
       if (name === "play-track") {
         const { trackId, deviceId } = PlayTrackSchema.parse(args);
-        
+
         const endpoint = deviceId ? `/me/player/play?device_id=${deviceId}` : "/me/player/play";
-        
+
         await spotifyApiRequest(endpoint, "PUT", {
           uris: [`spotify:track:${trackId}`],
         });
-        
+
         return {
           content: [
             {
@@ -1384,10 +1382,10 @@ Repeat: ${
           ],
         };
       }
-      
+
       if (name === "pause-playback") {
         await spotifyApiRequest("/me/player/pause", "PUT");
-        
+
         return {
           content: [
             {
@@ -1397,10 +1395,10 @@ Repeat: ${
           ],
         };
       }
-      
+
       if (name === "next-track") {
         await spotifyApiRequest("/me/player/next", "POST");
-        
+
         return {
           content: [
             {
@@ -1410,10 +1408,10 @@ Repeat: ${
           ],
         };
       }
-      
+
       if (name === "previous-track") {
         await spotifyApiRequest("/me/player/previous", "POST");
-        
+
         return {
           content: [
             {
@@ -1423,7 +1421,7 @@ Repeat: ${
           ],
         };
       }
-      
+
       if (name === "get-user-playlists") {
         const { limit, offset } = GetUserPlaylistsSchema.parse(args);
 
@@ -1472,7 +1470,7 @@ Showing ${offset + 1}-${offset + playlists.items.length} of ${playlists.total} t
           ],
         };
       }
-      
+
       if (name === "create-playlist") {
         const { name, description, public: isPublic } = CreatePlaylistSchema.parse(args);
 
@@ -1485,7 +1483,7 @@ Showing ${offset + 1}-${offset + playlists.items.length} of ${playlists.total} t
             public: isPublic,
           }
         );
-        
+
         return {
           content: [
             {
@@ -1498,12 +1496,12 @@ URL: ${playlist.external_urls.spotify}`,
           ],
         };
       }
-      
+
       if (name === "add-tracks-to-playlist") {
         const { playlistId, trackIds } = AddTracksSchema.parse(args);
-        
+
         const uris = trackIds.map((id) => `spotify:track:${id}`);
-        
+
         await spotifyApiRequest(
           `/playlists/${encodeURIComponent(playlistId)}/items`,
           "POST",
@@ -1511,7 +1509,7 @@ URL: ${playlist.external_urls.spotify}`,
             uris,
           }
         );
-        
+
         return {
           content: [
             {
@@ -1521,7 +1519,7 @@ URL: ${playlist.external_urls.spotify}`,
           ],
         };
       }
-      
+
       if (name === "get-playlist-tracks") {
         const { playlistId, limit, offset } = GetPlaylistTracksSchema.parse(args);
 
@@ -1557,10 +1555,10 @@ Artist: ${track.artists.map((a: any) => a.name).join(", ")}
 Album: ${track.album?.name || "N/A"}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(
-                Math.floor(track.duration_ms / 1000) % 60
-              )
-                .toString()
-                .padStart(2, "0")}
+                  Math.floor(track.duration_ms / 1000) % 60
+                )
+                  .toString()
+                  .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`;
             }
@@ -1762,20 +1760,20 @@ URL: ${item.track.external_urls.spotify}
 
       if (name === "get-recommendations") {
         const { seedTracks, seedArtists, seedGenres, limit } = GetRecommendationsSchema.parse(args);
-        
+
         if (!seedTracks && !seedArtists && !seedGenres) {
           throw new Error("At least one seed (tracks, artists, or genres) must be provided");
         }
-        
+
         const params = new URLSearchParams();
-        
+
         if (limit) params.append("limit", limit.toString());
         if (seedTracks) params.append("seed_tracks", seedTracks.join(","));
         if (seedArtists) params.append("seed_artists", seedArtists.join(","));
         if (seedGenres) params.append("seed_genres", seedGenres.join(","));
-        
+
         const recommendations = await spotifyApiRequest(`/recommendations?${params}`);
-        
+
         const formattedRecommendations = recommendations.tracks
           .map(
             (track: any) => `
@@ -1784,15 +1782,15 @@ Artist: ${track.artists.map((a: any) => a.name).join(", ")}
 Album: ${track.album.name}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(
-              Math.floor(track.duration_ms / 1000) % 60
-            )
-              .toString()
-              .padStart(2, "0")}
+                Math.floor(track.duration_ms / 1000) % 60
+              )
+                .toString()
+                .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`
           )
           .join("\n");
-        
+
         return {
           content: [
             {
@@ -1807,14 +1805,14 @@ URL: ${track.external_urls.spotify}
 
       if (name === "get-top-tracks") {
         const { limit, offset, time_range } = GetTopTracksSchema.parse(args);
-        
+
         const params = new URLSearchParams();
         params.append("limit", limit.toString());
         params.append("offset", offset.toString());
         params.append("time_range", time_range);
-        
+
         const topTracks = await spotifyApiRequest(`/me/top/tracks?${params}`);
-        
+
         const formattedTracks = topTracks.items
           .map(
             (track: any) => `
@@ -1823,15 +1821,15 @@ Artist: ${track.artists.map((a: any) => a.name).join(", ")}
 Album: ${track.album.name}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(
-              Math.floor(track.duration_ms / 1000) % 60
-            )
-              .toString()
-              .padStart(2, "0")}
+                Math.floor(track.duration_ms / 1000) % 60
+              )
+                .toString()
+                .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`
           )
           .join("\n");
-        
+
         return {
           content: [
             {
@@ -1843,7 +1841,7 @@ URL: ${track.external_urls.spotify}
           ],
         };
       }
-      
+
       throw new Error(`Unknown tool: ${name}`);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1866,11 +1864,11 @@ URL: ${track.external_urls.spotify}
  */
 async function main() {
   const transport = new StdioServerTransport();
-  
+
   try {
     await server.connect(transport);
     console.error("Spotify MCP Server running on stdio");
-    
+
     // Set up clean shutdown handlers
     setupCleanupHandlers();
   } catch (error) {
@@ -1891,20 +1889,20 @@ function setupCleanupHandlers() {
   process.on('SIGINT', cleanupAndExit);
   process.on('SIGTERM', cleanupAndExit);
   process.on('exit', cleanup);
-  
+
   // Handle uncaught exceptions
   process.on('uncaughtException', (error) => {
     console.error('Uncaught exception:', error);
     cleanupAndExit(1);
   });
-  
+
 
   process.on('SIGUSR1', () => {
     console.error('SIGUSR1 received - Forcing token reload');
-    
+
     const loaded = loadTokens();
     console.error(`Token reload result: ${loaded ? 'SUCCESS' : 'FAILED'}`);
-    
+
     console.error(`Current token state:
       accessToken: ${accessToken ? '***exists***' : 'null'}
       refreshToken: ${refreshToken ? '***exists***' : 'null'}

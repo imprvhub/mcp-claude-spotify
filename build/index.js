@@ -34,17 +34,17 @@ function isPortInUse(port) {
     return new Promise((resolve) => {
         const server = net.createServer()
             .once('error', (err) => {
-            if (err.code === 'EADDRINUSE') {
-                resolve(true);
-            }
-            else {
-                resolve(false);
-            }
-        })
+                if (err.code === 'EADDRINUSE') {
+                    resolve(true);
+                }
+                else {
+                    resolve(false);
+                }
+            })
             .once('listening', () => {
-            server.close();
-            resolve(false);
-        })
+                server.close();
+                resolve(false);
+            })
             .listen(port);
     });
 }
@@ -226,7 +226,7 @@ function getPlaylistItemTotal(playlist) {
 }
 const server = new Server({
     name: "spotify-mcp",
-    version: "0.4.0",
+    version: "0.5.0",
 }, {
     capabilities: {
         tools: {},
@@ -1129,8 +1129,8 @@ Artist: ${track.artists.map((a) => a.name).join(", ")}
 Album: ${track.album.name}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(Math.floor(track.duration_ms / 1000) % 60)
-                    .toString()
-                    .padStart(2, "0")}
+                            .toString()
+                            .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`)
                     .join("\n");
@@ -1199,18 +1199,18 @@ Track: ${playback.item.name}
 Artist: ${playback.item.artists.map((a) => a.name).join(", ")}
 Album: ${playback.item.album.name}
 Progress: ${Math.floor(playback.progress_ms / 1000 / 60)}:${(Math.floor(playback.progress_ms / 1000) % 60)
-                    .toString()
-                    .padStart(2, "0")} / ${Math.floor(playback.item.duration_ms / 1000 / 60)}:${(Math.floor(playback.item.duration_ms / 1000) % 60)
-                    .toString()
-                    .padStart(2, "0")}
+                        .toString()
+                        .padStart(2, "0")} / ${Math.floor(playback.item.duration_ms / 1000 / 60)}:${(Math.floor(playback.item.duration_ms / 1000) % 60)
+                            .toString()
+                            .padStart(2, "0")}
 Device: ${playback.device.name}
 Volume: ${playback.device.volume_percent}%
 Shuffle: ${playback.shuffle_state ? "On" : "Off"}
 Repeat: ${playback.repeat_state === "off"
-                    ? "Off"
-                    : playback.repeat_state === "context"
-                        ? "Context"
-                        : "Track"}`;
+                        ? "Off"
+                        : playback.repeat_state === "context"
+                            ? "Context"
+                            : "Track"}`;
             }
             else {
                 responseText = `
@@ -1219,10 +1219,10 @@ Device: ${playback.device.name}
 Volume: ${playback.device.volume_percent}%
 Shuffle: ${playback.shuffle_state ? "On" : "Off"}
 Repeat: ${playback.repeat_state === "off"
-                    ? "Off"
-                    : playback.repeat_state === "context"
-                        ? "Context"
-                        : "Track"}`;
+                        ? "Off"
+                        : playback.repeat_state === "context"
+                            ? "Context"
+                            : "Track"}`;
             }
             return {
                 content: [
@@ -1376,19 +1376,19 @@ URL: ${playlist.external_urls.spotify}`,
             }
             const formattedTracks = result.items
                 .map((item, index) => {
-                const track = item.item || item.track;
-                if (!track)
-                    return `${offset + index + 1}. [Unavailable track]\n---`;
-                return `${offset + index + 1}. ${track.name}
+                    const track = item.item || item.track;
+                    if (!track)
+                        return `${offset + index + 1}. [Unavailable track]\n---`;
+                    return `${offset + index + 1}. ${track.name}
 Artist: ${track.artists.map((a) => a.name).join(", ")}
 Album: ${track.album?.name || "N/A"}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(Math.floor(track.duration_ms / 1000) % 60)
-                    .toString()
-                    .padStart(2, "0")}
+                            .toString()
+                            .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`;
-            })
+                })
                 .join("\n");
             const paginationInfo = `\nShowing ${offset + 1}-${offset + result.items.length} of ${result.total} total tracks`;
             return {
@@ -1560,8 +1560,8 @@ Artist: ${track.artists.map((a) => a.name).join(", ")}
 Album: ${track.album.name}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(Math.floor(track.duration_ms / 1000) % 60)
-                .toString()
-                .padStart(2, "0")}
+                        .toString()
+                        .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`)
                 .join("\n");
@@ -1590,8 +1590,8 @@ Artist: ${track.artists.map((a) => a.name).join(", ")}
 Album: ${track.album.name}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(Math.floor(track.duration_ms / 1000) % 60)
-                .toString()
-                .padStart(2, "0")}
+                        .toString()
+                        .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`)
                 .join("\n");
