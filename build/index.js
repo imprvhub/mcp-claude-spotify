@@ -371,7 +371,7 @@ async function spotifyApiRequest(endpoint, method = "GET", data = null) {
                 throw new Error("Authorization expired. Please authenticate again.");
             }
         }
-        const detail = error.response?.data ? JSON.stringify(error.response.data) : '';
+        const detail = error.response?.data ? (typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : String(error.response.data)) : '';
         throw new Error(`Spotify API error: ${error.message}${detail ? ` - ${detail}` : ''}`);
     }
 }
