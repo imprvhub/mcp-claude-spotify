@@ -172,7 +172,7 @@ console.error(tokensLoaded ?
 const SearchSchema = z.object({
   query: z.string(),
   type: z.enum(["track", "album", "artist", "playlist"]).default("track"),
-  limit: z.number().min(1).max(10).default(5),
+  limit: z.coerce.number().min(1).max(10).default(5),
 });
 
 const PlayTrackSchema = z.object({
@@ -191,22 +191,16 @@ const AddTracksSchema = z.object({
   trackIds: z.array(z.string()),
 });
 
-const GetRecommendationsSchema = z.object({
-  seedTracks: z.array(z.string()).optional(),
-  seedArtists: z.array(z.string()).optional(),
-  seedGenres: z.array(z.string()).optional(),
-  limit: z.number().min(1).max(100).default(20),
-});
 
 const GetTopTracksSchema = z.object({
-  limit: z.number().min(1).max(50).default(20),
-  offset: z.number().min(0).default(0),
+  limit: z.coerce.number().min(1).max(50).default(20),
+  offset: z.coerce.number().min(0).default(0),
   time_range: z.enum(["short_term", "medium_term", "long_term"]).default("medium_term"),
 });
 
 const GetUserPlaylistsSchema = z.object({
-  limit: z.number().min(1).max(50).default(20),
-  offset: z.number().min(0).default(0),
+  limit: z.coerce.number().min(1).max(50).default(20),
+  offset: z.coerce.number().min(0).default(0),
 });
 
 const GetPlaylistTracksSchema = z.object({
@@ -444,7 +438,8 @@ async function spotifyApiRequest(endpoint: string, method: string = "GET", data:
         throw new Error("Authorization expired. Please authenticate again.");
       }
     }
-    throw new Error(`Spotify API error: ${error.message}`);
+    const detail = error.response?.data ? (typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : String(error.response.data)) : '';
+    throw new Error(`Spotify API error: ${error.message}${detail ? ` - ${detail}` : ''}`);
   }
 }
 
@@ -850,40 +845,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["playlistId", "trackIds"],
-        },
-      },
-      {
-        name: "get-recommendations",
-        description: "Get track recommendations based on seeds",
-        inputSchema: {
-          type: "object",
-          properties: {
-            seedTracks: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-              description: "Array of Spotify track IDs to use as seeds (optional)",
-            },
-            seedArtists: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-              description: "Array of Spotify artist IDs to use as seeds (optional)",
-            },
-            seedGenres: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-              description: "Array of genre names to use as seeds (optional)",
-            },
-            limit: {
-              type: "number",
-              description: "Maximum number of tracks to return (1-100, default: 20)",
-            },
-          },
         },
       },
       {
@@ -1389,7 +1350,7 @@ URL: ${playlist.external_urls.spotify}`,
         });
 
         const result = await spotifyApiRequest(
-          `/playlists/${encodeURIComponent(playlistId)}/tracks?${params}`
+          `/playlists/${encodeURIComponent(playlistId)}/items?${params}`
         );
 
         if (!result.items || result.items.length === 0) {
@@ -1476,51 +1437,6 @@ URL: ${track.external_urls.spotify}
         };
       }
 
-      if (name === "get-recommendations") {
-        const { seedTracks, seedArtists, seedGenres, limit } = GetRecommendationsSchema.parse(args);
-        
-        if (!seedTracks && !seedArtists && !seedGenres) {
-          throw new Error("At least one seed (tracks, artists, or genres) must be provided");
-        }
-        
-        const params = new URLSearchParams();
-        
-        if (limit) params.append("limit", limit.toString());
-        if (seedTracks) params.append("seed_tracks", seedTracks.join(","));
-        if (seedArtists) params.append("seed_artists", seedArtists.join(","));
-        if (seedGenres) params.append("seed_genres", seedGenres.join(","));
-        
-        const recommendations = await spotifyApiRequest(`/recommendations?${params}`);
-        
-        const formattedRecommendations = recommendations.tracks
-          .map(
-            (track: any) => `
-Track: ${track.name}
-Artist: ${track.artists.map((a: any) => a.name).join(", ")}
-Album: ${track.album.name}
-ID: ${track.id}
-Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(
-              Math.floor(track.duration_ms / 1000) % 60
-            )
-              .toString()
-              .padStart(2, "0")}
-URL: ${track.external_urls.spotify}
----`
-          )
-          .join("\n");
-        
-        return {
-          content: [
-            {
-              type: "text",
-              text: recommendations.tracks.length > 0
-                ? `Recommended tracks:\n${formattedRecommendations}`
-                : "No recommendations found.",
-            },
-          ],
-        };
-      }
-      
       if (name === "get-top-tracks") {
         const { limit, offset, time_range } = GetTopTracksSchema.parse(args);
         
