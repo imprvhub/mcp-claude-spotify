@@ -1,5 +1,6 @@
 
 
+
 # MCP Claude Spotify
 [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/imprvhub/mcp-claude-spotify)](https://archestra.ai/mcp-catalog/imprvhub__mcp-claude-spotify)
 [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/99039f16-4abd-4af8-8873-ae2844e7dd65)
@@ -11,7 +12,7 @@
   <a href="https://mseep.ai/app/imprvhub-mcp-claude-spotify">
     <img src="https://mseep.net/pr/imprvhub-mcp-claude-spotify-badge.png" alt="MseeP.ai Security Assessment Badge" />
   </a>
-</td>  
+</td>
 <td style="width: 50%; padding: 15px; vertical-align: middle; border: none;">An integration that allows Claude Desktop to interact with Spotify using the Model Context Protocol (MCP).</td>
 <td style="width: 50%; padding: 0; vertical-align: middle; border: none;"><a href="https://glama.ai/mcp/servers/@imprvhub/mcp-claude-spotify"><img src="https://glama.ai/mcp/servers/@imprvhub/mcp-claude-spotify/badge" alt="Claude Spotify MCP server" style="max-width: 100%;" /></a></td>
 </tr>
@@ -22,9 +23,10 @@
 - Spotify authentication
 - Search for tracks, albums, artists, and playlists
 - Playback control (play, pause, next, previous)
-- Create and manage playlists
+- Full playlist management (create, update, delete, reorder tracks, manage cover images)
 - Get personalized recommendations
 - Access user's top played tracks over different time periods
+- View recently played tracks
 
 ## Demo
 
@@ -245,10 +247,14 @@ The MCP server runs as a child process managed by Claude Desktop. When Claude is
 
 ## Available Tools
 
-### auth-spotify
+### Authentication
+
+#### auth-spotify
 Initiates the Spotify authentication process.
 
-### search-spotify
+### Search
+
+#### search-spotify
 Searches for tracks, albums, artists, or playlists.
 
 **Parameters:**
@@ -256,53 +262,116 @@ Searches for tracks, albums, artists, or playlists.
 - `type`: Type of search (track, album, artist, playlist)
 - `limit`: Number of results (1-10, default: 5)
 
-### play-track
-Plays a specific track.
+### Playback Control
+
+#### get-current-playback
+Gets information about the current playback state.
+
+#### play-track
+Plays a specific track on an active device.
 
 **Parameters:**
 - `trackId`: Spotify track ID
 - `deviceId`: (Optional) Spotify device ID to play on
 
-### get-current-playback
-Gets information about the current playback.
+#### pause-playback
+Pauses the current playback.
 
-### pause-playback
-Pauses the playback.
-
-### next-track
+#### next-track
 Skips to the next track.
 
-### previous-track
+#### previous-track
 Returns to the previous track.
 
-### get-user-playlists
-Gets the user's playlists.
+### Playlist Management
 
-### create-playlist
-Creates a new playlist.
+#### get-user-playlists
+Gets a list of the user's playlists.
+
+**Parameters:**
+- `limit`: (Optional) Number of playlists to return (1-50, default: 20)
+- `offset`: (Optional) Index of the first playlist to return (default: 0)
+
+#### create-playlist
+Creates a new playlist for the current user.
 
 **Parameters:**
 - `name`: Playlist name
 - `description`: (Optional) Description
 - `public`: (Optional) Whether it's public or private
 
-### add-tracks-to-playlist
+#### update-playlist
+Updates a playlist's name, description, public/private status, or collaborative setting.
+
+**Parameters:**
+- `playlistId`: Spotify ID of the playlist
+- `name`: (Optional) New name for the playlist
+- `description`: (Optional) New description for the playlist
+- `public`: (Optional) Whether the playlist should be public
+- `collaborative`: (Optional) Whether the playlist should be collaborative (must set public to false first)
+
+#### delete-playlist
+Unfollows (removes) a playlist from your library. The playlist still exists on Spotify but is no longer in your library.
+
+**Parameters:**
+- `playlistId`: Spotify ID of the playlist
+
+#### get-playlist-tracks
+Gets the tracks in a playlist with pagination support.
+
+**Parameters:**
+- `playlistId`: Spotify ID of the playlist
+- `limit`: (Optional) Number of tracks to return (1-50, default: 20)
+- `offset`: (Optional) Index of the first track to return (default: 0)
+
+#### add-tracks-to-playlist
 Adds tracks to a playlist.
 
 **Parameters:**
 - `playlistId`: Playlist ID
 - `trackIds`: Array of track IDs
 
-### get-recommendations
-Gets recommendations based on seeds.
+#### remove-tracks-from-playlist
+Removes tracks from a playlist.
 
 **Parameters:**
-- `seedTracks`: (Optional) Array of track IDs
-- `seedArtists`: (Optional) Array of artist IDs
-- `seedGenres`: (Optional) Array of genres
-- `limit`: (Optional) Number of recommendations (1-100)
+- `playlistId`: Spotify ID of the playlist
+- `trackIds`: Array of Spotify track IDs to remove
 
-### get-top-tracks
+#### reorder-playlist-tracks
+Reorders tracks in a playlist by moving a range of tracks to a new position.
+
+**Parameters:**
+- `playlistId`: Spotify ID of the playlist
+- `rangeStart`: Position of the first track to move
+- `insertBefore`: Position where the tracks should be inserted
+- `rangeLength`: (Optional) Number of tracks to move (default: 1)
+
+#### get-playlist-cover
+Gets the cover image of a playlist.
+
+**Parameters:**
+- `playlistId`: Spotify ID of the playlist
+
+#### upload-playlist-cover
+Uploads a custom cover image for a playlist (base64 encoded JPEG, max 256KB).
+
+**Parameters:**
+- `playlistId`: Spotify ID of the playlist
+- `imageBase64`: Base64 encoded JPEG image
+
+### Discovery & History
+
+#### get-recommendations
+Gets track recommendations based on seed tracks, artists, or genres.
+
+**Parameters:**
+- `seedTracks`: (Optional) Array of Spotify track IDs
+- `seedArtists`: (Optional) Array of Spotify artist IDs
+- `seedGenres`: (Optional) Array of genre names
+- `limit`: (Optional) Number of recommendations (1-100, default: 20)
+
+#### get-top-tracks
 Gets the user's most played tracks over a specified time range.
 
 **Parameters:**
@@ -312,6 +381,14 @@ Gets the user's most played tracks over a specified time range.
   - `short_term`: Approximately last 4 weeks
   - `medium_term`: Approximately last 6 months (default)
   - `long_term`: Several years of data
+
+#### get-recently-played
+Gets the user's recently played tracks.
+
+**Parameters:**
+- `limit`: (Optional) Maximum number of tracks to return (1-50, default: 20)
+- `before`: (Optional) Unix timestamp in milliseconds. Returns tracks played before this time
+- `after`: (Optional) Unix timestamp in milliseconds. Returns tracks played after this time
 
 ## Troubleshooting
 
@@ -402,7 +479,7 @@ If you encounter issues with ESM modules, make sure you're using Node.js v16 or 
 When adding new functionality, please include corresponding tests:
 
 1. For new schemas, add validation tests in `schemas.test.ts`
-2. For Spotify API functions, add tests in `spotify-api.test.ts` 
+2. For Spotify API functions, add tests in `spotify-api.test.ts`
 3. For MCP tools, add tests in `server.test.ts`
 
 All tests should be written using Jest and the ESM module format with TypeScript.
