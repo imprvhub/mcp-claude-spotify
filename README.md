@@ -28,6 +28,10 @@
 - Access user's top played tracks over different time periods
 - View recently played tracks
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/imprvhub-mcp-claude-spotify).
+
 ## Demo
 
 <p>
