@@ -15,14 +15,11 @@ import net from "net";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { promisify } from "util";
-import { exec } from "child_process";
+import crypto from "crypto";
 import { ServerAlreadyRunningError } from "./errors.js";
 import { SpotifyPlaylist } from "./types.js";
 
 dotenv.config();
-
-const execAsync = promisify(exec);
 
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 const SPOTIFY_AUTH_BASE = "https://accounts.spotify.com";
@@ -63,6 +60,7 @@ let accessToken: string | null = null;
 let refreshToken: string | null = null;
 let tokenExpirationTime = 0;
 let authServer: any = null;
+let pendingOAuthState: string | null = null;
 
 /**
  * Ensures the token storage directory exists
@@ -70,7 +68,7 @@ let authServer: any = null;
 function ensureTokenDirExists() {
   try {
     if (!fs.existsSync(TOKEN_DIR)) {
-      fs.mkdirSync(TOKEN_DIR, { recursive: true });
+      fs.mkdirSync(TOKEN_DIR, { recursive: true, mode: 0o700 });
     }
   } catch (error) {
     console.error(`Error creating token directory: ${error}`);
@@ -97,7 +95,7 @@ function saveTokens() {
       tokenExpirationTime: ${tokenExpirationTime}
     }`);
 
-    fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenData, null, 2));
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenData, null, 2), { mode: 0o600 });
     console.error(`Tokens successfully saved to ${TOKEN_PATH}`);
   } catch (error) {
     console.error(`Error saving tokens: ${error}`);
@@ -169,6 +167,10 @@ console.error(tokensLoaded ?
  */
 // Second isPortInUse definition removed to fix duplicate function error
 
+// Spotify IDs are alphanumeric strings, typically 22 characters.
+// This regex is intentionally permissive but blocks path traversal and injection.
+const spotifyIdSchema = z.string().regex(/^[a-zA-Z0-9]{1,64}$/, "Invalid Spotify ID format");
+
 const SearchSchema = z.object({
   query: z.string(),
   type: z.enum(["track", "album", "artist", "playlist"]).default("track"),
@@ -176,8 +178,8 @@ const SearchSchema = z.object({
 });
 
 const PlayTrackSchema = z.object({
-  trackId: z.string(),
-  deviceId: z.string().optional(),
+  trackId: spotifyIdSchema,
+  deviceId: spotifyIdSchema.optional(),
 });
 
 const CreatePlaylistSchema = z.object({
@@ -187,14 +189,14 @@ const CreatePlaylistSchema = z.object({
 });
 
 const AddTracksSchema = z.object({
-  playlistId: z.string(),
-  trackIds: z.array(z.string()),
+  playlistId: spotifyIdSchema,
+  trackIds: z.array(spotifyIdSchema),
 });
 
 const GetRecommendationsSchema = z.object({
-  seedTracks: z.array(z.string()).optional(),
-  seedArtists: z.array(z.string()).optional(),
-  seedGenres: z.array(z.string()).optional(),
+  seedTracks: z.array(spotifyIdSchema).optional(),
+  seedArtists: z.array(spotifyIdSchema).optional(),
+  seedGenres: z.array(z.string().regex(/^[a-z0-9-]+$/, "Invalid genre format")).optional(),
   limit: z.coerce.number().min(1).max(100).default(20),
 });
 
@@ -210,22 +212,22 @@ const GetUserPlaylistsSchema = z.object({
 });
 
 const GetPlaylistTracksSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyIdSchema,
   limit: z.coerce.number().min(1).max(50).default(20),
   offset: z.coerce.number().min(0).default(0),
 });
 
 const DeletePlaylistSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyIdSchema,
 });
 
 const RemoveTracksFromPlaylistSchema = z.object({
-  playlistId: z.string(),
-  trackIds: z.array(z.string()),
+  playlistId: spotifyIdSchema,
+  trackIds: z.array(spotifyIdSchema),
 });
 
 const UpdatePlaylistSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyIdSchema,
   name: z.string().optional(),
   description: z.string().optional(),
   public: z.preprocess((v) => v === "true" ? true : v === "false" ? false : v, z.boolean().optional()),
@@ -233,16 +235,16 @@ const UpdatePlaylistSchema = z.object({
 });
 
 const GetPlaylistCoverSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyIdSchema,
 });
 
 const UploadPlaylistCoverSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyIdSchema,
   imageBase64: z.string(),
 });
 
 const ReorderPlaylistTracksSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyIdSchema,
   rangeStart: z.coerce.number().min(0),
   insertBefore: z.coerce.number().min(0),
   rangeLength: z.coerce.number().min(1).default(1),
@@ -425,7 +427,7 @@ async function spotifyApiRequest(endpoint: string, method: string = "GET", data:
             tokenExpirationTime
           }, null, 2);
 
-          fs.writeFileSync(TOKEN_PATH, tokenData);
+          fs.writeFileSync(TOKEN_PATH, tokenData, { mode: 0o600 });
           console.error(`Refreshed tokens saved to file`);
         } catch (saveError) {
           console.error(`Failed to save refreshed tokens: ${saveError}`);
@@ -501,33 +503,8 @@ async function startAuthServer(): Promise<void> {
 
   const portInUse = await isPortInUse(PORT);
   if (portInUse) {
-    console.error(`Port ${PORT} is already in use, attempting to use existing server`);
-
-    console.error(`Attempting to kill any process on port ${PORT}...`);
-    try {
-      if (process.platform === 'win32') {
-        await execAsync(`FOR /F "tokens=5" %P IN ('netstat -ano ^| findstr :${PORT} ^| findstr LISTENING') DO taskkill /F /PID %P`);
-      } else {
-        await execAsync(`lsof -i:${PORT} -t | xargs kill -9`);
-      }
-      console.error(`Successfully killed process on port ${PORT}`);
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const stillInUse = await isPortInUse(PORT);
-      if (stillInUse) {
-        console.error(`Port ${PORT} is still in use after kill attempt`);
-        throw new ServerAlreadyRunningError(PORT);
-      }
-    } catch (killError) {
-      console.error(`Failed to kill process on port ${PORT}: ${killError}`);
-      try {
-        await open(`http://127.0.0.1:${PORT}/login`);
-        return Promise.resolve();
-      } catch (error) {
-        throw new ServerAlreadyRunningError(PORT);
-      }
-    }
+    console.error(`Port ${PORT} is already in use. Refusing to kill unknown processes.`);
+    throw new ServerAlreadyRunningError(PORT);
   }
 
   return new Promise((resolve, reject) => {
@@ -550,18 +527,43 @@ async function startAuthServer(): Promise<void> {
         "ugc-image-upload",
       ];
 
+      // Generate a cryptographically random state parameter to prevent CSRF
+      pendingOAuthState = crypto.randomBytes(32).toString('hex');
+
       res.redirect(
         `${SPOTIFY_AUTH_BASE}/authorize?${querystring.stringify({
           response_type: "code",
           client_id: CLIENT_ID,
           scope: scopes.join(" "),
           redirect_uri: REDIRECT_URI,
+          state: pendingOAuthState,
         })}`
       );
     });
 
     // Callback endpoint receives authorization code and exchanges it for tokens
     app.get("/callback", async (req, res) => {
+      // Check for error response from Spotify (e.g., user denied access)
+      if (req.query.error) {
+        const errorMsg = `Spotify authorization denied: ${req.query.error}`;
+        console.error(errorMsg);
+        res.send(`Authentication failed: ${req.query.error}`);
+        reject(new Error(errorMsg));
+        return;
+      }
+
+      // Validate the state parameter to prevent CSRF attacks
+      const returnedState = req.query.state as string | undefined;
+      if (!returnedState || returnedState !== pendingOAuthState) {
+        const errorMsg = "Authentication failed: Invalid state parameter (possible CSRF attack)";
+        console.error(errorMsg);
+        res.status(403).send(errorMsg);
+        pendingOAuthState = null;
+        reject(new Error(errorMsg));
+        return;
+      }
+      pendingOAuthState = null;
+
       const code = req.query.code || null;
 
       if (!code) {
@@ -612,7 +614,7 @@ async function startAuthServer(): Promise<void> {
           }, null, 2);
 
           console.error(`Writing ${tokenData.length} bytes to ${TOKEN_PATH}`);
-          fs.writeFileSync(TOKEN_PATH, tokenData);
+          fs.writeFileSync(TOKEN_PATH, tokenData, { mode: 0o600 });
 
           if (fs.existsSync(TOKEN_PATH)) {
             const stats = fs.statSync(TOKEN_PATH);
@@ -641,6 +643,16 @@ async function startAuthServer(): Promise<void> {
         }
 
         res.send("Authentication successful! You can close this window now.");
+
+        // Shut down the auth server now that authentication is complete
+        setTimeout(() => {
+          if (authServer) {
+            console.error('Shutting down auth server after successful authentication');
+            authServer.close();
+            authServer = null;
+          }
+        }, 1000);
+
         resolve();
       } catch (error: any) {
         console.error("Error getting tokens:", error.message);
@@ -669,8 +681,19 @@ async function startAuthServer(): Promise<void> {
         }
       });
 
+      // Auto-close the auth server after 5 minutes if auth hasn't completed
+      const authTimeout = setTimeout(() => {
+        if (authServer) {
+          console.error('Auth server timed out after 5 minutes, shutting down');
+          authServer.close();
+          authServer = null;
+          reject(new Error("Authentication timed out. Please try again."));
+        }
+      }, 5 * 60 * 1000);
+
       // Clean up server when process is about to exit
       process.on('beforeExit', () => {
+        clearTimeout(authTimeout);
         if (authServer) {
           console.error('Closing auth server');
           authServer.close();
@@ -1367,7 +1390,7 @@ Repeat: ${playback.repeat_state === "off"
       if (name === "play-track") {
         const { trackId, deviceId } = PlayTrackSchema.parse(args);
 
-        const endpoint = deviceId ? `/me/player/play?device_id=${deviceId}` : "/me/player/play";
+        const endpoint = deviceId ? `/me/player/play?device_id=${encodeURIComponent(deviceId)}` : "/me/player/play";
 
         await spotifyApiRequest(endpoint, "PUT", {
           uris: [`spotify:track:${trackId}`],
