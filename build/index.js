@@ -1630,8 +1630,8 @@ async function main() {
         console.error("Spotify MCP Server running on stdio");
         // Set up clean shutdown handlers
         setupCleanupHandlers();
-        if (!tokensLoaded) {
-            console.error('No tokens found, starting authentication automatically...');
+        if (!tokensLoaded && process.env.SPOTIFY_AUTO_AUTH === 'true') {
+            console.error('No tokens found and SPOTIFY_AUTO_AUTH=true, starting authentication...');
             startAuthServer().catch((err) => console.error('Auth server error:', err));
         }
     }

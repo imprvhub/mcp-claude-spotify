@@ -1872,10 +1872,11 @@ async function main() {
     // Set up clean shutdown handlers
     setupCleanupHandlers();
 
-    // Auto-start auth flow when no tokens exist so the user doesn't have to
-    // manually invoke auth-spotify before the MCP tools are usable.
-    if (!tokensLoaded) {
-      console.error('No tokens found, starting authentication automatically...');
+    // Auto-start auth only when explicitly opted-in via SPOTIFY_AUTO_AUTH=true.
+    // This avoids unexpected browser popups when the server is launched in the
+    // background by a host client (e.g. Claude Desktop).
+    if (!tokensLoaded && process.env.SPOTIFY_AUTO_AUTH === 'true') {
+      console.error('No tokens found and SPOTIFY_AUTO_AUTH=true, starting authentication...');
       startAuthServer().catch((err: unknown) => console.error('Auth server error:', err));
     }
   } catch (error) {
