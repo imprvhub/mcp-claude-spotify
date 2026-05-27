@@ -1871,6 +1871,13 @@ async function main() {
 
     // Set up clean shutdown handlers
     setupCleanupHandlers();
+
+    // Auto-start auth flow when no tokens exist so the user doesn't have to
+    // manually invoke auth-spotify before the MCP tools are usable.
+    if (!tokensLoaded) {
+      console.error('No tokens found, starting authentication automatically...');
+      startAuthServer().catch((err: unknown) => console.error('Auth server error:', err));
+    }
   } catch (error) {
     console.error("Error connecting to transport:", error);
     throw error;

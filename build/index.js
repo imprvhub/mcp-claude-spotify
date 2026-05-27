@@ -1630,6 +1630,10 @@ async function main() {
         console.error("Spotify MCP Server running on stdio");
         // Set up clean shutdown handlers
         setupCleanupHandlers();
+        if (!tokensLoaded) {
+            console.error('No tokens found, starting authentication automatically...');
+            startAuthServer().catch((err) => console.error('Auth server error:', err));
+        }
     }
     catch (error) {
         console.error("Error connecting to transport:", error);
