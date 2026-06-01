@@ -27,6 +27,8 @@ const execAsync = promisify(exec);
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 const SPOTIFY_AUTH_BASE = "https://accounts.spotify.com";
 
+const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || "";
+
 const PORT = 8888;
 const REDIRECT_URI = `http://127.0.0.1:${PORT}/callback`;
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
@@ -545,9 +547,12 @@ async function startAuthServer(): Promise<void> {
         "playlist-modify-private",
         "playlist-modify-public",
         "user-library-read",
+        "user-library-modify",
         "user-top-read",
         "user-read-recently-played",
         "ugc-image-upload",
+        "user-follow-read",
+        "user-follow-modify",
       ];
 
       res.redirect(
@@ -556,6 +561,7 @@ async function startAuthServer(): Promise<void> {
           client_id: CLIENT_ID,
           scope: scopes.join(" "),
           redirect_uri: REDIRECT_URI,
+          show_dialog: "true",
         })}`
       );
     });
@@ -1367,11 +1373,17 @@ Repeat: ${playback.repeat_state === "off"
       if (name === "play-track") {
         const { trackId, deviceId } = PlayTrackSchema.parse(args);
 
-        const endpoint = deviceId ? `/me/player/play?device_id=${deviceId}` : "/me/player/play";
-
-        await spotifyApiRequest(endpoint, "PUT", {
-          uris: [`spotify:track:${trackId}`],
-        });
+        if (MAKE_WEBHOOK_URL) {
+          await axios.post(MAKE_WEBHOOK_URL, {
+            action: "play",
+            track_uri: `spotify:track:${trackId}`,
+            device_id: deviceId || "",
+            volume: 70,
+          });
+        } else {
+          const endpoint = deviceId ? `/me/player/play?device_id=${deviceId}` : "/me/player/play";
+          await spotifyApiRequest(endpoint, "PUT", { uris: [`spotify:track:${trackId}`] });
+        }
 
         return {
           content: [
@@ -1384,7 +1396,11 @@ Repeat: ${playback.repeat_state === "off"
       }
 
       if (name === "pause-playback") {
-        await spotifyApiRequest("/me/player/pause", "PUT");
+        if (MAKE_WEBHOOK_URL) {
+          await axios.post(MAKE_WEBHOOK_URL, { action: "pause", track_uri: "", device_id: "", volume: 0 });
+        } else {
+          await spotifyApiRequest("/me/player/pause", "PUT");
+        }
 
         return {
           content: [
