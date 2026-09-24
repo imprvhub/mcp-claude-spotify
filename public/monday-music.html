@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monday Music</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--outer-bg);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px 100px;
+}
+a { text-decoration: none; }
+
+/* ── CSS CUSTOM PROPERTIES (editorial defaults) ───────────────────────── */
+:root {
+  --outer-bg: #e8dfd0;
+  --bg: #f5ede0;
+  --surface: #ede3d3;
+  --border: #d8ccbe;
+  --text: #1a1208;
+  --text-muted: #7a6855;
+  --text-dim: #b8a890;
+  --accent: #c94f2c;
+  --accent-bg: rgba(201,79,44,0.08);
+  --accent-fg: #fff;
+  --header-bg: #1a1208;
+  --header-text: #f5ede0;
+  --header-accent: #e8734a;
+  --header-date-color: #a09080;
+  --num-color: #c94f2c;
+  --track-hover: #ede3d3;
+  --source-bg: #ede3d3;
+  --source-border: #d0c4b0;
+  --new-badge: #c94f2c;
+  --chart-0: #c94f2c;
+  --chart-1: #e8734a;
+  --chart-2: #d4a574;
+  --chart-3: #b8c4a0;
+  --chart-4: #9ab0c8;
+}
+
+/* ── NEWSLETTER ───────────────────────────────────────────────────────── */
+#nl {
+  width: 600px;
+  background: var(--bg);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+}
+
+/* ── HEADER ───────────────────────────────────────────────────────────── */
+.nl-hdr {
+  background: var(--header-bg);
+  padding: 26px 32px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.hdr-logo-monday { font-family: 'Anton',sans-serif; font-size: 44px; color: var(--header-accent); line-height: 1; letter-spacing: -0.01em; }
+.hdr-logo-music  { font-family: 'Anton',sans-serif; font-size: 44px; color: var(--header-text);   line-height: 1; letter-spacing: -0.01em; }
+.hdr-meta { text-align: right; }
+.hdr-date     { font-family: 'DM Mono',monospace; font-size: 9px; color: var(--header-date-color); letter-spacing: 0.1em; margin-bottom: 5px; }
+.hdr-greeting { font-size: 13px; color: var(--header-text); opacity: 0.85; }
+.hdr-genre    { font-family: 'DM Mono',monospace; font-size: 10px; color: var(--header-accent); margin-top: 3px; }
+
+/* ── SECTIONS ─────────────────────────────────────────────────────────── */
+.nl-sec  { padding: 0 32px 4px; }
+.nl-div  { height: 1px; background: linear-gradient(90deg, var(--border), transparent); margin: 4px 32px; }
+.sec-hdr { display: flex; align-items: baseline; justify-content: space-between; padding: 20px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 2px; }
+.sec-hdr-l { display: flex; align-items: baseline; gap: 10px; }
+.sec-num   { font-family: 'Anton',sans-serif; font-size: 11px; color: var(--accent); letter-spacing: 0.18em; }
+.sec-label { font-family: 'Anton',sans-serif; font-size: 20px; color: var(--text); letter-spacing: 0.04em; }
+.sec-sub   { font-family: 'DM Mono',monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 0.08em; }
+
+/* ── WRAPPED ──────────────────────────────────────────────────────────── */
+.wrapped-body { display: flex; gap: 20px; padding: 16px 0; align-items: flex-start; }
+.donut-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.donut-slice { transform: rotate(-90deg); transform-origin: 55px 55px; }
+.donut-legend { display: flex; flex-direction: column; gap: 4px; }
+.legend-row { display: flex; align-items: center; gap: 6px; }
+.legend-dot  { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.legend-name { font-family: 'DM Mono',monospace; font-size: 9px; color: var(--text-muted); }
+.legend-pct  { font-family: 'DM Mono',monospace; font-size: 9px; color: var(--text-dim); margin-left: auto; padding-left: 8px; }
+.stats-col { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.stat-big {
+  background: var(--accent-bg);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-radius: 4px; padding: 12px 14px;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.stat-big-n { font-family: 'Anton',sans-serif; font-size: 36px; color: var(--accent); line-height: 1; }
+.stat-big-l { font-family: 'DM Mono',monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 0.08em; }
+.stat-lbl { font-family: 'DM Mono',monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 0.1em; margin-bottom: 6px; }
+.artists-list { display: flex; flex-direction: column; gap: 4px; }
+.artist-row { display: flex; align-items: center; gap: 8px; }
+.artist-rank { font-family: 'Anton',sans-serif; font-size: 11px; color: var(--accent); min-width: 16px; }
+.artist-name { font-size: 12px; color: var(--text); font-weight: 500; }
+.artist-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
+.discoveries { display: flex; flex-wrap: wrap; gap: 5px; }
+.disc-tag {
+  font-family: 'DM Mono',monospace; font-size: 9px;
+  color: var(--accent); background: var(--accent-bg);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  padding: 2px 8px; border-radius: 3px;
+}
+
+/* ── NEWS ─────────────────────────────────────────────────────────────── */
+.news-list { display: flex; flex-direction: column; padding-top: 8px; }
+.news-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.news-item:last-child { border-bottom: none; }
+.news-cat { font-family: 'DM Mono',monospace; font-size: 8px; padding: 2px 6px; border-radius: 2px; white-space: nowrap; margin-top: 1px; flex-shrink: 0; letter-spacing: 0.08em; }
+.cat-release { color: var(--accent);   border: 1px solid color-mix(in srgb, var(--accent)   27%, transparent); }
+.cat-touring { color: var(--chart-1);  border: 1px solid color-mix(in srgb, var(--chart-1)  27%, transparent); }
+.cat-local   { color: var(--chart-0);  border: 1px solid color-mix(in srgb, var(--chart-0)  27%, transparent); }
+.cat-fest    { color: var(--chart-2);  border: 1px solid color-mix(in srgb, var(--chart-2)  27%, transparent); }
+.news-text  { font-size: 12px; color: var(--text); line-height: 1.55; flex: 1; }
+.news-arrow { font-family: 'DM Mono',monospace; font-size: 9px; color: var(--accent); margin-top: 2px; flex-shrink: 0; }
+
+/* ── ALBUM CARDS ──────────────────────────────────────────────────────── */
+.album-card { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.album-card:last-child { border-bottom: none; }
+.album-idx  { font-family: 'Anton',sans-serif; font-size: 28px; color: var(--text-dim); line-height: 1; padding-top: 6px; min-width: 26px; text-align: right; }
+.album-art  { flex-shrink: 0; border-radius: 3px; display: block; }
+.album-art .art-fill   { fill: var(--surface); }
+.album-art .art-stripe { fill: var(--border); }
+.album-art .art-label  { fill: var(--text-muted); }
+.album-info { flex: 1; min-width: 0; }
+.album-top  { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+.album-title  { font-family: 'Anton',sans-serif; font-size: 16px; color: var(--text); letter-spacing: 0.02em; line-height: 1.1; }
+.album-artist { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-weight: 500; }
+.album-badge  { font-family: 'DM Mono',monospace; font-size: 9px; color: var(--accent); background: var(--source-bg); border: 1px solid var(--source-border); padding: 3px 7px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; }
+.album-blurb  { font-size: 11.5px; color: var(--text-muted); line-height: 1.6; }
+.album-btn {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 9px;
+  background: var(--accent); color: var(--accent-fg);
+  padding: 4px 12px; border-radius: 3px;
+  font-family: 'DM Mono',monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+}
+
+/* ── PLAYLIST ─────────────────────────────────────────────────────────── */
+.pl-meta { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 4px; }
+.pl-genre-lbl { font-family: 'DM Mono',monospace; font-size: 9px; color: var(--accent); letter-spacing: 0.1em; }
+.pl-hint      { font-family: 'DM Mono',monospace; font-size: 9px; color: var(--text-dim); font-style: italic; max-width: 240px; text-align: right; }
+.track-row { display: flex; align-items: center; gap: 14px; padding: 10px 10px; border-radius: 4px; transition: background 0.12s; cursor: default; }
+.track-row:hover { background: var(--track-hover); }
+.track-num    { font-family: 'Anton',sans-serif; font-size: 20px; color: var(--num-color); min-width: 26px; line-height: 1; text-align: right; }
+.track-info   { flex: 1; }
+.track-top    { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.track-title  { font-size: 12px; font-weight: 600; color: var(--text); }
+.track-new    { font-size: 8px; font-family: 'DM Mono',monospace; color: var(--new-badge); border: 1px solid var(--new-badge); padding: 1px 4px; border-radius: 2px; letter-spacing: 0.1em; }
+.track-reason { font-size: 8px; font-family: 'DM Mono',monospace; color: var(--accent); background: var(--accent-bg); padding: 1px 5px; border-radius: 2px; letter-spacing: 0.08em; }
+.track-artist { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+.track-dur    { font-family: 'DM Mono',monospace; font-size: 10px; color: var(--text-dim); }
+.pl-open-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--accent); color: var(--accent);
+  padding: 7px 16px; border-radius: 3px;
+  font-family: 'DM Mono',monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  margin: 14px 10px 4px;
+}
+
+/* ── FOOTER ───────────────────────────────────────────────────────────── */
+.nl-footer {
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; margin-top: 8px;
+}
+.footer-brand { font-family: 'Anton',sans-serif; font-size: 13px; color: var(--accent); letter-spacing: 0.08em; }
+.footer-links { font-family: 'DM Mono',monospace; font-size: 9px; color: var(--text-dim); text-align: right; line-height: 1.7; }
+.footer-links a { color: var(--text-muted); }
+
+</style>
+</head>
+<body>
+
+<div id="nl">
+
+  <!-- ── HEADER ─────────────────────────────────────────────────────── -->
+  <div class="nl-hdr">
+    <div>
+      <div class="hdr-logo-monday">MONDAY</div>
+      <div class="hdr-logo-music">MUSIC</div>
+    </div>
+    <div class="hdr-meta">
+      <div class="hdr-date">MONDAY · APR 20 2026 · #018</div>
+      <div class="hdr-greeting">Hey <strong>Mike</strong> — curated for you.</div>
+      <div class="hdr-genre">↑ Top genre: Electronic (47%)</div>
+    </div>
+  </div>
+
+  <!-- ── 01 THIS WEEK WRAPPED ───────────────────────────────────────── -->
+  <div class="nl-sec">
+    <div class="sec-hdr">
+      <div class="sec-hdr-l"><span class="sec-num">01</span><span class="sec-label">THIS WEEK WRAPPED</span></div>
+      <span class="sec-sub">APR 14–20</span>
+    </div>
+    <div class="wrapped-body">
+
+      <!-- Donut chart — pre-calculated stroke-dasharray for r=38, circ≈238.76 -->
+      <div class="donut-col">
+        <svg width="110" height="110" viewBox="0 0 110 110">
+          <circle cx="55" cy="55" r="38" fill="none" style="stroke:var(--border)" stroke-width="18"/>
+          <!-- Electronic 47%: dash=112.22, offset=0 -->
+          <circle cx="55" cy="55" r="38" fill="none" class="donut-slice" style="stroke:var(--chart-0)" stroke-width="18" stroke-dasharray="112.22 126.54" stroke-dashoffset="0"/>
+          <!-- Ambient 22%: dash=52.53, offset=112.22 -->
+          <circle cx="55" cy="55" r="38" fill="none" class="donut-slice" style="stroke:var(--chart-1)" stroke-width="18" stroke-dasharray="52.53 186.23" stroke-dashoffset="-112.22"/>
+          <!-- R&B 16%: dash=38.20, offset=164.75 -->
+          <circle cx="55" cy="55" r="38" fill="none" class="donut-slice" style="stroke:var(--chart-2)" stroke-width="18" stroke-dasharray="38.20 200.56" stroke-dashoffset="-164.75"/>
+          <!-- Indie 10%: dash=23.88, offset=202.95 -->
+          <circle cx="55" cy="55" r="38" fill="none" class="donut-slice" style="stroke:var(--chart-3)" stroke-width="18" stroke-dasharray="23.88 214.88" stroke-dashoffset="-202.95"/>
+          <!-- Other 5%: dash=11.94, offset=226.83 -->
+          <circle cx="55" cy="55" r="38" fill="none" class="donut-slice" style="stroke:var(--chart-4)" stroke-width="18" stroke-dasharray="11.94 226.82" stroke-dashoffset="-226.83"/>
+          <text x="55" y="49" text-anchor="middle" font-family="Anton,sans-serif" font-size="18" style="fill:var(--text)">47%</text>
+          <text x="55" y="63" text-anchor="middle" font-family="DM Mono,monospace" font-size="7" style="fill:var(--text-muted)">ELECTRONIC</text>
+        </svg>
+        <div class="donut-legend">
+          <div class="legend-row"><div class="legend-dot" style="background:var(--chart-0)"></div><span class="legend-name">Electronic</span><span class="legend-pct">47%</span></div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--chart-1)"></div><span class="legend-name">Ambient</span><span class="legend-pct">22%</span></div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--chart-2)"></div><span class="legend-name">R&amp;B</span><span class="legend-pct">16%</span></div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--chart-3)"></div><span class="legend-name">Indie</span><span class="legend-pct">10%</span></div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--chart-4)"></div><span class="legend-name">Other</span><span class="legend-pct">5%</span></div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-col">
+        <div class="stat-big">
+          <span class="stat-big-n">847</span>
+          <span class="stat-big-l">MINUTES LISTENED</span>
+        </div>
+        <div>
+          <div class="stat-lbl">TOP ARTISTS</div>
+          <div class="artists-list">
+            <div class="artist-row"><span class="artist-rank">1</span><span class="artist-name">Four Tet</span><div class="artist-line"></div></div>
+            <div class="artist-row"><span class="artist-rank">2</span><span class="artist-name">Aphex Twin</span><div class="artist-line"></div></div>
+            <div class="artist-row"><span class="artist-rank">3</span><span class="artist-name">M83</span><div class="artist-line"></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="stat-lbl">NEW DISCOVERIES · 3 ARTISTS</div>
+          <div class="discoveries">
+            <span class="disc-tag">Floating Points</span>
+            <span class="disc-tag">Actress</span>
+            <span class="disc-tag">Rival Consoles</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nl-div"></div>
+
+  <!-- ── 02 MUSIC NEWS ──────────────────────────────────────────────── -->
+  <div class="nl-sec">
+    <div class="sec-hdr">
+      <div class="sec-hdr-l"><span class="sec-num">02</span><span class="sec-label">MUSIC NEWS</span></div>
+      <span class="sec-sub">CURATED FOR YOU</span>
+    </div>
+    <div class="news-list">
+      <a href="#" class="news-item"><span class="news-cat cat-release">NEW RELEASE</span><span class="news-text">Four Tet announces surprise EP "Sixteen Oceans Remix Sessions" dropping Friday.</span><span class="news-arrow">→</span></a>
+      <a href="#" class="news-item"><span class="news-cat cat-touring">TOURING</span><span class="news-text">M83 European tour announced, hitting Porto and Madrid in September 2026.</span><span class="news-arrow">→</span></a>
+      <a href="#" class="news-item"><span class="news-cat cat-local">LISBON SHOW</span><span class="news-text">Burial live AV show at Lux Frágil, May 3rd — first ever live set.</span><span class="news-arrow">→</span></a>
+      <a href="#" class="news-item"><span class="news-cat cat-fest">FESTIVAL</span><span class="news-text">NOS Alive 2026 lineup drops: Massive Attack, Four Tet, Portishead headline.</span><span class="news-arrow">→</span></a>
+      <a href="#" class="news-item"><span class="news-cat cat-release">NEW RELEASE</span><span class="news-text">Actress returns with "Lageos 2", a collaboration with London Sinfonietta.</span><span class="news-arrow">→</span></a>
+      <a href="#" class="news-item"><span class="news-cat cat-fest">FESTIVAL</span><span class="news-text">Primavera Sound Porto announces Aphex Twin and Floating Points for June.</span><span class="news-arrow">→</span></a>
+    </div>
+  </div>
+
+  <div class="nl-div"></div>
+
+  <!-- ── 03 NEW RELEASES ────────────────────────────────────────────── -->
+  <div class="nl-sec">
+    <div class="sec-hdr">
+      <div class="sec-hdr-l"><span class="sec-num">03</span><span class="sec-label">NEW RELEASES</span></div>
+      <span class="sec-sub">5 ALBUMS THIS WEEK</span>
+    </div>
+
+    <div class="album-card">
+      <span class="album-idx">01</span>
+      <svg class="album-art" width="74" height="74" viewBox="0 0 74 74"><defs><pattern id="ap1" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" class="art-fill"/><rect width="1.2" height="8" class="art-stripe"/></pattern></defs><rect width="74" height="74" fill="url(#ap1)"/><text x="37" y="34" text-anchor="middle" class="art-label" font-family="DM Mono,monospace" font-size="8">album art</text></svg>
+      <div class="album-info">
+        <div class="album-top"><div><div class="album-title">Chromakopia</div><div class="album-artist">Tyler, the Creator · 2024</div></div><span class="album-badge"><strong>Pitchfork</strong> · 8.5/10</span></div>
+        <div class="album-blurb">Tyler, the Creator turns inner contradiction into maximalist gospel on Chromakopia. A dense, confident swing that rewards patience.</div>
+        <a href="#" class="album-btn">▶ SPOTIFY</a>
+      </div>
+    </div>
+
+    <div class="album-card">
+      <span class="album-idx">02</span>
+      <svg class="album-art" width="74" height="74" viewBox="0 0 74 74"><defs><pattern id="ap2" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" class="art-fill"/><rect width="1.2" height="8" class="art-stripe"/></pattern></defs><rect width="74" height="74" fill="url(#ap2)"/><text x="37" y="34" text-anchor="middle" class="art-label" font-family="DM Mono,monospace" font-size="8">album art</text></svg>
+      <div class="album-info">
+        <div class="album-top"><div><div class="album-title">Short n' Sweet</div><div class="album-artist">Sabrina Carpenter · 2024</div></div><span class="album-badge"><strong>Rolling Stone</strong> · ★★★★</span></div>
+        <div class="album-blurb">Sabrina Carpenter delivers Short n' Sweet with disarming precision — breezy hooks that stick for days. Pop craft at peak form.</div>
+        <a href="#" class="album-btn">▶ SPOTIFY</a>
+      </div>
+    </div>
+
+    <div class="album-card">
+      <span class="album-idx">03</span>
+      <svg class="album-art" width="74" height="74" viewBox="0 0 74 74"><defs><pattern id="ap3" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" class="art-fill"/><rect width="1.2" height="8" class="art-stripe"/></pattern></defs><rect width="74" height="74" fill="url(#ap3)"/><text x="37" y="34" text-anchor="middle" class="art-label" font-family="DM Mono,monospace" font-size="8">album art</text></svg>
+      <div class="album-info">
+        <div class="album-top"><div><div class="album-title">Manning Fireworks</div><div class="album-artist">MJ Lenderman · 2024</div></div><span class="album-badge"><strong>Pitchfork</strong> · 8.2/10</span></div>
+        <div class="album-blurb">MJ Lenderman makes indie rock feel genuinely exciting again on Manning Fireworks. Wry, unhurried, and quietly devastating.</div>
+        <a href="#" class="album-btn">▶ SPOTIFY</a>
+      </div>
+    </div>
+
+    <div class="album-card">
+      <span class="album-idx">04</span>
+      <svg class="album-art" width="74" height="74" viewBox="0 0 74 74"><defs><pattern id="ap4" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" class="art-fill"/><rect width="1.2" height="8" class="art-stripe"/></pattern></defs><rect width="74" height="74" fill="url(#ap4)"/><text x="37" y="34" text-anchor="middle" class="art-label" font-family="DM Mono,monospace" font-size="8">album art</text></svg>
+      <div class="album-info">
+        <div class="album-top"><div><div class="album-title">Bright Future</div><div class="album-artist">Adrianne Lenker · 2024</div></div><span class="album-badge"><strong>NME</strong> · ★★★★★</span></div>
+        <div class="album-blurb">Adrianne Lenker strips everything back on Bright Future to find something luminous. The sparseness is the point.</div>
+        <a href="#" class="album-btn">▶ SPOTIFY</a>
+      </div>
+    </div>
+
+    <div class="album-card">
+      <span class="album-idx">05</span>
+      <svg class="album-art" width="74" height="74" viewBox="0 0 74 74"><defs><pattern id="ap5" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" class="art-fill"/><rect width="1.2" height="8" class="art-stripe"/></pattern></defs><rect width="74" height="74" fill="url(#ap5)"/><text x="37" y="34" text-anchor="middle" class="art-label" font-family="DM Mono,monospace" font-size="8">album art</text></svg>
+      <div class="album-info">
+        <div class="album-top"><div><div class="album-title">Imaginal Disk</div><div class="album-artist">Magdalena Bay · 2024</div></div><span class="album-badge"><strong>Stereogum</strong> · Album of Year</span></div>
+        <div class="album-blurb">Magdalena Bay synthesize a decade of electronic pop and push it somewhere new on Imaginal Disk. A genuine album-of-the-year contender.</div>
+        <a href="#" class="album-btn">▶ SPOTIFY</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="nl-div"></div>
+
+  <!-- ── 04 YOUR PLAYLIST ───────────────────────────────────────────── -->
+  <div class="nl-sec" style="padding-bottom:8px">
+    <div class="sec-hdr">
+      <div class="sec-hdr-l"><span class="sec-num">04</span><span class="sec-label">YOUR PLAYLIST</span></div>
+      <span class="sec-sub">10 TRACKS</span>
+    </div>
+
+    <!-- Electronic -->
+    <div>
+      <div class="pl-meta"><span class="pl-genre-lbl">ELECTRONIC / AMBIENT</span><span class="pl-hint">Built from your top artists + new discoveries this week</span></div>
+      <div class="track-row"><span class="track-num">01</span><div class="track-info"><div class="track-top"><span class="track-title">New Energy</span><span class="track-reason">TOP ARTIST</span></div><div class="track-artist">Four Tet</div></div><span class="track-dur">5:47</span></div>
+      <div class="track-row"><span class="track-num">02</span><div class="track-info"><div class="track-top"><span class="track-title">Sad Alron</span><span class="track-reason">SIMILAR TO YOUR TOP</span></div><div class="track-artist">Burial</div></div><span class="track-dur">6:12</span></div>
+      <div class="track-row"><span class="track-num">03</span><div class="track-info"><div class="track-top"><span class="track-title">Midnight City</span><span class="track-reason">YOUR FAVE</span><span class="track-new">NEW</span></div><div class="track-artist">M83</div></div><span class="track-dur">4:03</span></div>
+      <div class="track-row"><span class="track-num">04</span><div class="track-info"><div class="track-top"><span class="track-title">LesAlpx</span><span class="track-reason">TOP ARTIST</span></div><div class="track-artist">Aphex Twin</div></div><span class="track-dur">4:52</span></div>
+      <div class="track-row"><span class="track-num">05</span><div class="track-info"><div class="track-top"><span class="track-title">Movement</span><span class="track-reason">NEW DISCOVERY</span></div><div class="track-artist">Floating Points</div></div><span class="track-dur">5:20</span></div>
+      <div class="track-row"><span class="track-num">06</span><div class="track-info"><div class="track-top"><span class="track-title">Teardrop</span><span class="track-reason">TOP ARTIST</span></div><div class="track-artist">Massive Attack</div></div><span class="track-dur">5:29</span></div>
+      <div class="track-row"><span class="track-num">07</span><div class="track-info"><div class="track-top"><span class="track-title">Untitled 5</span><span class="track-reason">NEW DISCOVERY</span><span class="track-new">NEW</span></div><div class="track-artist">Actress</div></div><span class="track-dur">4:11</span></div>
+      <div class="track-row"><span class="track-num">08</span><div class="track-info"><div class="track-top"><span class="track-title">Cascades</span><span class="track-reason">NEW DISCOVERY</span></div><div class="track-artist">Rival Consoles</div></div><span class="track-dur">6:03</span></div>
+      <div class="track-row"><span class="track-num">09</span><div class="track-info"><div class="track-top"><span class="track-title">Love Cry</span><span class="track-reason">TOP ARTIST</span></div><div class="track-artist">Four Tet</div></div><span class="track-dur">7:22</span></div>
+      <div class="track-row"><span class="track-num">10</span><div class="track-info"><div class="track-top"><span class="track-title">Mount Kimbie Remix</span><span class="track-reason">SIMILAR TO YOUR TOP</span></div><div class="track-artist">James Blake</div></div><span class="track-dur">4:44</span></div>
+      <a href="#" class="pl-open-btn">▶ OPEN FULL PLAYLIST IN SPOTIFY</a>
+    </div>
+
+  </div>
+
+  <!-- ── FOOTER ──────────────────────────────────────────────────────── -->
+  <div class="nl-footer">
+    <div class="footer-brand">MONDAY MUSIC</div>
+    <div class="footer-links">
+      You're receiving this because you signed up.<br>
+      <a href="#">Manage preferences</a> · <a href="#">Unsubscribe</a>
+    </div>
+  </div>
+
+</div><!-- #nl -->
+
+</body>
+</html>
