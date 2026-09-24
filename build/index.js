@@ -18,6 +18,7 @@ dotenv.config();
 const execAsync = promisify(exec);
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 const SPOTIFY_AUTH_BASE = "https://accounts.spotify.com";
+const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || "";
 const PORT = 8888;
 const REDIRECT_URI = `http://127.0.0.1:${PORT}/callback`;
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
@@ -34,17 +35,17 @@ function isPortInUse(port) {
     return new Promise((resolve) => {
         const server = net.createServer()
             .once('error', (err) => {
-                if (err.code === 'EADDRINUSE') {
-                    resolve(true);
-                }
-                else {
-                    resolve(false);
-                }
-            })
-            .once('listening', () => {
-                server.close();
+            if (err.code === 'EADDRINUSE') {
+                resolve(true);
+            }
+            else {
                 resolve(false);
-            })
+            }
+        })
+            .once('listening', () => {
+            server.close();
+            resolve(false);
+        })
             .listen(port);
     });
 }
@@ -469,15 +470,19 @@ async function startAuthServer() {
                 "playlist-modify-private",
                 "playlist-modify-public",
                 "user-library-read",
+                "user-library-modify",
                 "user-top-read",
                 "user-read-recently-played",
                 "ugc-image-upload",
+                "user-follow-read",
+                "user-follow-modify",
             ];
             res.redirect(`${SPOTIFY_AUTH_BASE}/authorize?${querystring.stringify({
                 response_type: "code",
                 client_id: CLIENT_ID,
                 scope: scopes.join(" "),
                 redirect_uri: REDIRECT_URI,
+                show_dialog: "true",
             })}`);
         });
         // Callback endpoint receives authorization code and exchanges it for tokens
@@ -1129,8 +1134,8 @@ Artist: ${track.artists.map((a) => a.name).join(", ")}
 Album: ${track.album.name}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(Math.floor(track.duration_ms / 1000) % 60)
-                            .toString()
-                            .padStart(2, "0")}
+                    .toString()
+                    .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`)
                     .join("\n");
@@ -1199,18 +1204,18 @@ Track: ${playback.item.name}
 Artist: ${playback.item.artists.map((a) => a.name).join(", ")}
 Album: ${playback.item.album.name}
 Progress: ${Math.floor(playback.progress_ms / 1000 / 60)}:${(Math.floor(playback.progress_ms / 1000) % 60)
-                        .toString()
-                        .padStart(2, "0")} / ${Math.floor(playback.item.duration_ms / 1000 / 60)}:${(Math.floor(playback.item.duration_ms / 1000) % 60)
-                            .toString()
-                            .padStart(2, "0")}
+                    .toString()
+                    .padStart(2, "0")} / ${Math.floor(playback.item.duration_ms / 1000 / 60)}:${(Math.floor(playback.item.duration_ms / 1000) % 60)
+                    .toString()
+                    .padStart(2, "0")}
 Device: ${playback.device.name}
 Volume: ${playback.device.volume_percent}%
 Shuffle: ${playback.shuffle_state ? "On" : "Off"}
 Repeat: ${playback.repeat_state === "off"
-                        ? "Off"
-                        : playback.repeat_state === "context"
-                            ? "Context"
-                            : "Track"}`;
+                    ? "Off"
+                    : playback.repeat_state === "context"
+                        ? "Context"
+                        : "Track"}`;
             }
             else {
                 responseText = `
@@ -1219,10 +1224,10 @@ Device: ${playback.device.name}
 Volume: ${playback.device.volume_percent}%
 Shuffle: ${playback.shuffle_state ? "On" : "Off"}
 Repeat: ${playback.repeat_state === "off"
-                        ? "Off"
-                        : playback.repeat_state === "context"
-                            ? "Context"
-                            : "Track"}`;
+                    ? "Off"
+                    : playback.repeat_state === "context"
+                        ? "Context"
+                        : "Track"}`;
             }
             return {
                 content: [
@@ -1235,10 +1240,18 @@ Repeat: ${playback.repeat_state === "off"
         }
         if (name === "play-track") {
             const { trackId, deviceId } = PlayTrackSchema.parse(args);
-            const endpoint = deviceId ? `/me/player/play?device_id=${deviceId}` : "/me/player/play";
-            await spotifyApiRequest(endpoint, "PUT", {
-                uris: [`spotify:track:${trackId}`],
-            });
+            if (MAKE_WEBHOOK_URL) {
+                await axios.post(MAKE_WEBHOOK_URL, {
+                    action: "play",
+                    track_uri: `spotify:track:${trackId}`,
+                    device_id: deviceId || "",
+                    volume: 70,
+                });
+            }
+            else {
+                const endpoint = deviceId ? `/me/player/play?device_id=${deviceId}` : "/me/player/play";
+                await spotifyApiRequest(endpoint, "PUT", { uris: [`spotify:track:${trackId}`] });
+            }
             return {
                 content: [
                     {
@@ -1249,7 +1262,12 @@ Repeat: ${playback.repeat_state === "off"
             };
         }
         if (name === "pause-playback") {
-            await spotifyApiRequest("/me/player/pause", "PUT");
+            if (MAKE_WEBHOOK_URL) {
+                await axios.post(MAKE_WEBHOOK_URL, { action: "pause", track_uri: "", device_id: "", volume: 0 });
+            }
+            else {
+                await spotifyApiRequest("/me/player/pause", "PUT");
+            }
             return {
                 content: [
                     {
@@ -1376,19 +1394,19 @@ URL: ${playlist.external_urls.spotify}`,
             }
             const formattedTracks = result.items
                 .map((item, index) => {
-                    const track = item.item || item.track;
-                    if (!track)
-                        return `${offset + index + 1}. [Unavailable track]\n---`;
-                    return `${offset + index + 1}. ${track.name}
+                const track = item.item || item.track;
+                if (!track)
+                    return `${offset + index + 1}. [Unavailable track]\n---`;
+                return `${offset + index + 1}. ${track.name}
 Artist: ${track.artists.map((a) => a.name).join(", ")}
 Album: ${track.album?.name || "N/A"}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(Math.floor(track.duration_ms / 1000) % 60)
-                            .toString()
-                            .padStart(2, "0")}
+                    .toString()
+                    .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`;
-                })
+            })
                 .join("\n");
             const paginationInfo = `\nShowing ${offset + 1}-${offset + result.items.length} of ${result.total} total tracks`;
             return {
@@ -1560,8 +1578,8 @@ Artist: ${track.artists.map((a) => a.name).join(", ")}
 Album: ${track.album.name}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(Math.floor(track.duration_ms / 1000) % 60)
-                        .toString()
-                        .padStart(2, "0")}
+                .toString()
+                .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`)
                 .join("\n");
@@ -1590,8 +1608,8 @@ Artist: ${track.artists.map((a) => a.name).join(", ")}
 Album: ${track.album.name}
 ID: ${track.id}
 Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(Math.floor(track.duration_ms / 1000) % 60)
-                        .toString()
-                        .padStart(2, "0")}
+                .toString()
+                .padStart(2, "0")}
 URL: ${track.external_urls.spotify}
 ---`)
                 .join("\n");
@@ -1630,6 +1648,13 @@ async function main() {
         console.error("Spotify MCP Server running on stdio");
         // Set up clean shutdown handlers
         setupCleanupHandlers();
+        // Auto-start auth only when explicitly opted-in via SPOTIFY_AUTO_AUTH=true.
+        // This avoids unexpected browser popups when the server is launched in the
+        // background by a host client (e.g. Claude Desktop).
+        if (!tokensLoaded && process.env.SPOTIFY_AUTO_AUTH === 'true') {
+            console.error('No tokens found and SPOTIFY_AUTO_AUTH=true, starting authentication...');
+            startAuthServer().catch((err) => console.error('Auth server error:', err));
+        }
     }
     catch (error) {
         console.error("Error connecting to transport:", error);
