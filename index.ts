@@ -7,28 +7,30 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import dotenv from "dotenv";
 import { z } from "zod";
-import express from "express";
 import axios from "axios";
 import querystring from "querystring";
 import open from "open";
 import net from "net";
 import fs from "fs";
+import http from "node:http";
 import path from "path";
 import os from "os";
-import { promisify } from "util";
-import { exec } from "child_process";
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { pathToFileURL } from "node:url";
 import { ServerAlreadyRunningError } from "./errors.js";
 import { SpotifyPlaylist } from "./types.js";
 
 dotenv.config();
-
-const execAsync = promisify(exec);
 
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 const SPOTIFY_AUTH_BASE = "https://accounts.spotify.com";
 
 const PORT = 8888;
 const REDIRECT_URI = `http://127.0.0.1:${PORT}/callback`;
+// Loopback only by default: the OAuth callback must not be reachable from the network
+// (the express listener this replaced bound every interface). A container sets
+// AUTH_BIND_HOST=0.0.0.0 so its published port can reach the listener.
+const AUTH_BIND_HOST = process.env.AUTH_BIND_HOST || "127.0.0.1";
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 
@@ -62,7 +64,20 @@ function isPortInUse(port: number): Promise<boolean> {
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
 let tokenExpirationTime = 0;
-let authServer: any = null;
+let authServer: http.Server | null = null;
+/**
+ * OAuth state, regenerated per login. Without it, any page the user visits while this
+ * loopback server is listening can call /callback with its own code and bind the wrong
+ * Spotify account (RFC 6749 section 10.12).
+ */
+let authState: string | null = null;
+
+function statesMatch(received: string | null): boolean {
+  if (!authState || !received) return false;
+  const expected = Buffer.from(authState);
+  const actual = Buffer.from(received);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
 
 /**
  * Ensures the token storage directory exists
@@ -70,10 +85,22 @@ let authServer: any = null;
 function ensureTokenDirExists() {
   try {
     if (!fs.existsSync(TOKEN_DIR)) {
-      fs.mkdirSync(TOKEN_DIR, { recursive: true });
+      // Owner-only: this directory holds a long-lived Spotify refresh token.
+      fs.mkdirSync(TOKEN_DIR, { recursive: true, mode: 0o700 });
     }
   } catch (error) {
     console.error(`Error creating token directory: ${error}`);
+  }
+}
+
+/** Write the token file readable by its owner only (it was previously world-readable). */
+function writeTokenFile(payload: string) {
+  ensureTokenDirExists();
+  fs.writeFileSync(TOKEN_PATH, payload, { mode: 0o600 });
+  try {
+    fs.chmodSync(TOKEN_PATH, 0o600); // an existing file keeps its old mode otherwise
+  } catch (error) {
+    console.error(`Could not tighten permissions on ${TOKEN_PATH}: ${error}`);
   }
 }
 
@@ -97,7 +124,7 @@ function saveTokens() {
       tokenExpirationTime: ${tokenExpirationTime}
     }`);
 
-    fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenData, null, 2));
+    writeTokenFile(JSON.stringify(tokenData, null, 2));
     console.error(`Tokens successfully saved to ${TOKEN_PATH}`);
   } catch (error) {
     console.error(`Error saving tokens: ${error}`);
@@ -191,13 +218,6 @@ const AddTracksSchema = z.object({
   trackIds: z.array(z.string()),
 });
 
-const GetRecommendationsSchema = z.object({
-  seedTracks: z.array(z.string()).optional(),
-  seedArtists: z.array(z.string()).optional(),
-  seedGenres: z.array(z.string()).optional(),
-  limit: z.coerce.number().min(1).max(100).default(20),
-});
-
 const GetTopTracksSchema = z.object({
   limit: z.coerce.number().min(1).max(50).default(20),
   offset: z.coerce.number().min(0).default(0),
@@ -267,7 +287,7 @@ function getPlaylistItemTotal(playlist: SpotifyPlaylist): number | string {
 const server = new Server(
   {
     name: "spotify-mcp",
-    version: "0.5.0",
+    version: "0.6.0",
   },
   {
     capabilities: {
@@ -492,195 +512,174 @@ async function spotifyApiRequest(endpoint: string, method: string = "GET", data:
  * 
  * @returns {Promise<void>} Resolves when authentication is successful, rejects on failure
  */
+const SPOTIFY_SCOPES = [
+  "user-read-private",
+  "user-read-email",
+  "user-read-playback-state",
+  "user-modify-playback-state",
+  "user-read-currently-playing",
+  "playlist-read-private",
+  "playlist-modify-private",
+  "playlist-modify-public",
+  "user-library-read",
+  "user-top-read",
+  "user-read-recently-played",
+  "ugc-image-upload",
+];
+
+function authorizeUrl(state: string): string {
+  return `${SPOTIFY_AUTH_BASE}/authorize?${querystring.stringify({
+    response_type: "code",
+    client_id: CLIENT_ID,
+    scope: SPOTIFY_SCOPES.join(" "),
+    redirect_uri: REDIRECT_URI,
+    state,
+  })}`;
+}
+
+function closeAuthServer() {
+  if (authServer) {
+    authServer.close();
+    authServer = null;
+  }
+  authState = null;
+}
+
+async function exchangeCodeForTokens(code: string): Promise<void> {
+  const response = await axios.post(
+    `${SPOTIFY_AUTH_BASE}/api/token`,
+    querystring.stringify({
+      code,
+      redirect_uri: REDIRECT_URI,
+      grant_type: "authorization_code",
+    }),
+    {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64")}`,
+      },
+    }
+  );
+
+  accessToken = response.data.access_token;
+  refreshToken = response.data.refresh_token;
+  tokenExpirationTime = Date.now() + response.data.expires_in * 1000;
+  saveTokens();
+}
+
+/**
+ * Starts a loopback HTTP server for the Spotify authorization code flow.
+ *
+ * Only two routes exist, so the server is plain node:http; express was pulling in a
+ * dependency tree (and its vulnerable `qs`) for a redirect and a callback.
+ *
+ * If the port is busy this fails with a clear error. It used to run
+ * `lsof -i:8888 -t | xargs kill -9` (and a taskkill equivalent on Windows), which
+ * SIGKILLed whatever unrelated process happened to hold a very common dev port.
+ */
 async function startAuthServer(): Promise<void> {
   if (authServer) {
     console.error("Auth server is already running, opening login page");
     await open(`http://127.0.0.1:${PORT}/login`);
-    return Promise.resolve();
+    return;
   }
 
-  const portInUse = await isPortInUse(PORT);
-  if (portInUse) {
-    console.error(`Port ${PORT} is already in use, attempting to use existing server`);
-
-    console.error(`Attempting to kill any process on port ${PORT}...`);
-    try {
-      if (process.platform === 'win32') {
-        await execAsync(`FOR /F "tokens=5" %P IN ('netstat -ano ^| findstr :${PORT} ^| findstr LISTENING') DO taskkill /F /PID %P`);
-      } else {
-        await execAsync(`lsof -i:${PORT} -t | xargs kill -9`);
-      }
-      console.error(`Successfully killed process on port ${PORT}`);
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const stillInUse = await isPortInUse(PORT);
-      if (stillInUse) {
-        console.error(`Port ${PORT} is still in use after kill attempt`);
-        throw new ServerAlreadyRunningError(PORT);
-      }
-    } catch (killError) {
-      console.error(`Failed to kill process on port ${PORT}: ${killError}`);
-      try {
-        await open(`http://127.0.0.1:${PORT}/login`);
-        return Promise.resolve();
-      } catch (error) {
-        throw new ServerAlreadyRunningError(PORT);
-      }
-    }
+  if (await isPortInUse(PORT)) {
+    throw new ServerAlreadyRunningError(PORT);
   }
 
-  return new Promise((resolve, reject) => {
-    const app = express();
+  return new Promise<void>((resolve, reject) => {
+    const state = randomBytes(32).toString("hex");
+    authState = state;
 
-    // Login endpoint redirects to Spotify authorization page
-    app.get("/login", (req, res) => {
-      const scopes = [
-        "user-read-private",
-        "user-read-email",
-        "user-read-playback-state",
-        "user-modify-playback-state",
-        "user-read-currently-playing",
-        "playlist-read-private",
-        "playlist-modify-private",
-        "playlist-modify-public",
-        "user-library-read",
-        "user-top-read",
-        "user-read-recently-played",
-        "ugc-image-upload",
-      ];
+    const finish = (error?: Error) => {
+      closeAuthServer();
+      if (error) reject(error);
+      else resolve();
+    };
 
-      res.redirect(
-        `${SPOTIFY_AUTH_BASE}/authorize?${querystring.stringify({
-          response_type: "code",
-          client_id: CLIENT_ID,
-          scope: scopes.join(" "),
-          redirect_uri: REDIRECT_URI,
-        })}`
-      );
-    });
+    const server = http.createServer(async (req, res) => {
+      const requestUrl = new URL(req.url ?? "/", `http://127.0.0.1:${PORT}`);
 
-    // Callback endpoint receives authorization code and exchanges it for tokens
-    app.get("/callback", async (req, res) => {
-      const code = req.query.code || null;
+      if (requestUrl.pathname === "/login") {
+        res.writeHead(302, { Location: authorizeUrl(state) });
+        res.end();
+        return;
+      }
+
+      if (requestUrl.pathname !== "/callback") {
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.end("Not found");
+        return;
+      }
+
+      const code = requestUrl.searchParams.get("code");
+      const returnedState = requestUrl.searchParams.get("state");
+      const oauthError = requestUrl.searchParams.get("error");
+
+      if (oauthError) {
+        res.writeHead(400, { "Content-Type": "text/plain" });
+        res.end(`Authentication failed: ${oauthError}`);
+        finish(new Error(`Authentication failed: ${oauthError}`));
+        return;
+      }
+
+      if (!statesMatch(returnedState)) {
+        // Either a stale tab or a cross-site request; never exchange the code.
+        console.error("Rejected callback: OAuth state did not match");
+        res.writeHead(400, { "Content-Type": "text/plain" });
+        res.end("Authentication failed: state mismatch. Start the login again from Claude.");
+        return;
+      }
 
       if (!code) {
-        res.send("Authentication failed: No code provided");
-        reject(new Error("Authentication failed: No code provided"));
+        res.writeHead(400, { "Content-Type": "text/plain" });
+        res.end("Authentication failed: no code provided");
+        finish(new Error("Authentication failed: no code provided"));
         return;
       }
 
       try {
-        console.error(`Received authorization code, exchanging for tokens...`);
-        const response = await axios.post(
-          `${SPOTIFY_AUTH_BASE}/api/token`,
-          querystring.stringify({
-            code: code as string,
-            redirect_uri: REDIRECT_URI,
-            grant_type: "authorization_code",
-          }),
-          {
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              Authorization: `Basic ${Buffer.from(
-                `${CLIENT_ID}:${CLIENT_SECRET}`
-              ).toString("base64")}`,
-            },
-          }
-        );
-
-        console.error(`Token exchange successful, got access_token and refresh_token`);
-
-        accessToken = response.data.access_token;
-        refreshToken = response.data.refresh_token;
-        tokenExpirationTime = Date.now() + response.data.expires_in * 1000;
+        console.error("Received authorization code, exchanging for tokens...");
+        await exchangeCodeForTokens(code);
+        console.error("Token exchange successful");
 
         try {
-          if (!fs.existsSync(TOKEN_DIR)) {
-            console.error(`Creating token directory: ${TOKEN_DIR}`);
-            fs.mkdirSync(TOKEN_DIR, { recursive: true });
-          }
-        } catch (dirError) {
-          console.error(`CRITICAL ERROR creating token directory: ${dirError}`);
-        }
-
-        try {
-          const tokenData = JSON.stringify({
-            accessToken,
-            refreshToken,
-            tokenExpirationTime
-          }, null, 2);
-
-          console.error(`Writing ${tokenData.length} bytes to ${TOKEN_PATH}`);
-          fs.writeFileSync(TOKEN_PATH, tokenData);
-
-          if (fs.existsSync(TOKEN_PATH)) {
-            const stats = fs.statSync(TOKEN_PATH);
-            console.error(`Token file successfully written: ${stats.size} bytes`);
-          } else {
-            console.error(`CRITICAL ERROR: Token file not found after writing`);
-          }
-        } catch (fileError) {
-          console.error(`CRITICAL ERROR writing token file: ${fileError}`);
-        }
-
-        try {
-          console.error(`Verifying tokens with a test API call...`);
-          const verifyResponse = await axios({
-            method: 'GET',
-            url: `${SPOTIFY_API_BASE}/me`,
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            },
+          const verify = await axios.get(`${SPOTIFY_API_BASE}/me`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
           });
-
-          console.error(`Token verification successful! Authenticated as: ${verifyResponse.data.display_name}`);
+          console.error(`Authenticated as: ${verify.data.display_name ?? verify.data.id}`);
         } catch (verifyError) {
           console.error(`Token verification failed: ${verifyError}`);
         }
 
-        res.send("Authentication successful! You can close this window now.");
-        resolve();
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end("<p>Authentication successful. You can close this window now.</p>");
+        // The window is served before the listener goes away.
+        setTimeout(() => finish(), 100);
       } catch (error: any) {
         console.error("Error getting tokens:", error.message);
-        if (error.response) {
-          console.error("Error response:", error.response.data);
-        }
-        res.send("Authentication failed: " + error.message);
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.end(`Authentication failed: ${error.message}`);
+        finish(error);
+      }
+    });
+
+    server.on("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "EADDRINUSE") {
+        reject(new ServerAlreadyRunningError(PORT));
+      } else {
         reject(error);
       }
     });
 
-    try {
-      authServer = app.listen(PORT, () => {
-        console.error(`Auth server listening at http://127.0.0.1:${PORT}`);
-        open(`http://127.0.0.1:${PORT}/login`);
-      });
-
-      // Handle server errors
-      authServer.on('error', (error: any) => {
-        if (error.code === 'EADDRINUSE') {
-          console.error(`Port ${PORT} is already in use`);
-          reject(new ServerAlreadyRunningError(PORT));
-        } else {
-          console.error(`Server error: ${error.message}`);
-          reject(error);
-        }
-      });
-
-      // Clean up server when process is about to exit
-      process.on('beforeExit', () => {
-        if (authServer) {
-          console.error('Closing auth server');
-          authServer.close();
-          authServer = null;
-        }
-      });
-    } catch (error: any) {
-      console.error(`Error starting auth server: ${error.message}`);
-      reject(error);
-    }
+    server.listen(PORT, AUTH_BIND_HOST, () => {
+      authServer = server;
+      console.error(`Auth server listening at http://127.0.0.1:${PORT}`);
+      open(`http://127.0.0.1:${PORT}/login`).catch((error) =>
+        console.error(`Could not open the browser automatically: ${error}. Visit http://127.0.0.1:${PORT}/login`)
+      );
+    });
   });
 }
 
@@ -992,40 +991,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["playlistId", "rangeStart", "insertBefore"],
-        },
-      },
-      {
-        name: "get-recommendations",
-        description: "Get track recommendations based on seeds",
-        inputSchema: {
-          type: "object",
-          properties: {
-            seedTracks: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-              description: "Array of Spotify track IDs to use as seeds (optional)",
-            },
-            seedArtists: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-              description: "Array of Spotify artist IDs to use as seeds (optional)",
-            },
-            seedGenres: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-              description: "Array of genre names to use as seeds (optional)",
-            },
-            limit: {
-              type: "number",
-              description: "Maximum number of tracks to return (1-100, default: 20)",
-            },
-          },
         },
       },
       {
@@ -1758,51 +1723,6 @@ URL: ${item.track.external_urls.spotify}
         };
       }
 
-      if (name === "get-recommendations") {
-        const { seedTracks, seedArtists, seedGenres, limit } = GetRecommendationsSchema.parse(args);
-
-        if (!seedTracks && !seedArtists && !seedGenres) {
-          throw new Error("At least one seed (tracks, artists, or genres) must be provided");
-        }
-
-        const params = new URLSearchParams();
-
-        if (limit) params.append("limit", limit.toString());
-        if (seedTracks) params.append("seed_tracks", seedTracks.join(","));
-        if (seedArtists) params.append("seed_artists", seedArtists.join(","));
-        if (seedGenres) params.append("seed_genres", seedGenres.join(","));
-
-        const recommendations = await spotifyApiRequest(`/recommendations?${params}`);
-
-        const formattedRecommendations = recommendations.tracks
-          .map(
-            (track: any) => `
-Track: ${track.name}
-Artist: ${track.artists.map((a: any) => a.name).join(", ")}
-Album: ${track.album.name}
-ID: ${track.id}
-Duration: ${Math.floor(track.duration_ms / 1000 / 60)}:${(
-                Math.floor(track.duration_ms / 1000) % 60
-              )
-                .toString()
-                .padStart(2, "0")}
-URL: ${track.external_urls.spotify}
----`
-          )
-          .join("\n");
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: recommendations.tracks.length > 0
-                ? `Recommended tracks:\n${formattedRecommendations}`
-                : "No recommendations found.",
-            },
-          ],
-        };
-      }
-
       if (name === "get-top-tracks") {
         const { limit, offset, time_range } = GetTopTracksSchema.parse(args);
 
@@ -1846,7 +1766,8 @@ URL: ${track.external_urls.spotify}
     } catch (error) {
       if (error instanceof z.ZodError) {
         throw new Error(
-          `Invalid arguments: ${error.errors
+          // zod 4 renamed ZodError.errors to .issues
+          `Invalid arguments: ${error.issues
             .map((e) => `${e.path.join(".")}: ${e.message}`)
             .join(", ")}`
         );
@@ -1934,8 +1855,13 @@ function cleanupAndExit(exitCode = 0) {
   process.exit(exitCode);
 }
 
-// Start the application and handle any fatal errors
-main().catch((error) => {
-  console.error("Fatal error in main():", error);
-  cleanupAndExit(1);
-});
+// Start the application only when run as a program, so tests can import this module
+// without opening the stdio transport.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error("Fatal error in main():", error);
+    cleanupAndExit(1);
+  });
+}
+
+export { statesMatch, writeTokenFile, authorizeUrl, SPOTIFY_SCOPES, TOKEN_PATH };

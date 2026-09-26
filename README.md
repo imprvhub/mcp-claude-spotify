@@ -4,7 +4,7 @@
 # MCP Claude Spotify
 [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/imprvhub/mcp-claude-spotify)](https://archestra.ai/mcp-catalog/imprvhub__mcp-claude-spotify)
 [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/99039f16-4abd-4af8-8873-ae2844e7dd65)
-[![smithery badge](https://smithery.ai/badge/@imprvhub/mcp-claude-spotify)](https://smithery.ai/server/@imprvhub/mcp-claude-spotify)
+[![Smithery](https://img.shields.io/badge/Smithery-imprvhub%2Fmcp--claude--spotify-8A2BE2)](https://smithery.ai/server/imprvhub/mcp-claude-spotify)
 
 <table style="border-collapse: collapse; width: 100%;">
 <tr>
@@ -18,13 +18,20 @@
 </tr>
 </table>
 
+> **Removed in 0.6.0 — `get-recommendations`.** Spotify deprecated `/v1/recommendations`
+> on 27 November 2024, along with related-artists, audio-features, audio-analysis,
+> featured-playlists and 30-second preview URLs. Apps created after that date get
+> `403 Forbidden`, and apps still in development mode lost access too, so the tool could
+> not work for essentially anyone. Use `search-spotify` and `get-top-tracks` instead.
+> See [Spotify's announcement](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api).
+
 ## Features
 
 - Spotify authentication
 - Search for tracks, albums, artists, and playlists
 - Playback control (play, pause, next, previous)
 - Full playlist management (create, update, delete, reorder tracks, manage cover images)
-- Get personalized recommendations
+- Read your top tracks and listening history
 - Access user's top played tracks over different time periods
 - View recently played tracks
 
@@ -38,7 +45,7 @@
 
 ## Requirements
 
-- Node.js 16 or higher
+- Node.js 20 or higher
 - Spotify account
 - Claude Desktop
 - Spotify API credentials (Client ID and Client Secret)
@@ -47,10 +54,10 @@
 
 ### Installing via Smithery
 
-To install MCP Claude Spotify for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@imprvhub/mcp-claude-spotify):
+To install MCP Claude Spotify for Claude Desktop automatically via [Smithery](https://smithery.ai/server/imprvhub/mcp-claude-spotify):
 
 ```bash
-npx -y @smithery/cli install @imprvhub/mcp-claude-spotify --client claude
+npx -y @smithery/cli@latest mcp add imprvhub/mcp-claude-spotify --client claude
 ```
 
 ### Installing Manually
@@ -234,6 +241,14 @@ systemctl --user status spotify-mcp.service
 ```
 </details>
 
+## Development
+
+```bash
+npm install
+npm run build
+npm test
+```
+
 ## Usage
 
 1. Restart Claude Desktop after modifying the configuration
@@ -244,6 +259,25 @@ systemctl --user status spotify-mcp.service
 6. After restarting, all Spotify MCP tools will be properly registered and available for use
 
 The MCP server runs as a child process managed by Claude Desktop. When Claude is running, it automatically starts and manages the Node.js server process based on the configuration in `claude_desktop_config.json`.
+
+## Security notes
+
+- **Authorization is CSRF-protected.** The login URL carries a random `state` value that
+  the callback verifies before exchanging a code. Versions before 0.6.0 sent no `state`,
+  so any page open in your browser could hit the loopback callback and bind a different
+  Spotify account.
+- **The token file is owner-only.** `~/.spotify-mcp/tokens.json` holds a long-lived refresh
+  token and is now written mode `600` in a `700` directory. It was previously created with
+  the default mode, leaving it readable by every account on the machine.
+- **Nothing is killed to free the port.** If port 8888 is busy the server reports it and
+  stops. Earlier versions ran `lsof -i:8888 -t | xargs kill -9` (and a `taskkill`
+  equivalent on Windows), SIGKILLing whatever unrelated process held that very common
+  development port.
+- **The callback listens on loopback only** (`127.0.0.1`). The previous express listener
+  bound every network interface, so anyone on the same network could reach `/login` and
+  `/callback`. Containers can widen it with `AUTH_BIND_HOST=0.0.0.0`.
+- **The callback server shuts down** once authorization completes, rather than staying
+  bound for the rest of the session.
 
 ## Available Tools
 
@@ -361,15 +395,6 @@ Uploads a custom cover image for a playlist (base64 encoded JPEG, max 256KB).
 - `imageBase64`: Base64 encoded JPEG image
 
 ### Discovery & History
-
-#### get-recommendations
-Gets track recommendations based on seed tracks, artists, or genres.
-
-**Parameters:**
-- `seedTracks`: (Optional) Array of Spotify track IDs
-- `seedArtists`: (Optional) Array of Spotify artist IDs
-- `seedGenres`: (Optional) Array of genre names
-- `limit`: (Optional) Number of recommendations (1-100, default: 20)
 
 #### get-top-tracks
 Gets the user's most played tracks over a specified time range.
