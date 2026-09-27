@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "mcp-claude-spotify",
   "display_name": "Spotify MCP",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Control Spotify playback and manage your playlists from Claude.",
   "long_description": "A Model Context Protocol server for Spotify. Search the catalogue, control playback, read your top tracks and recently played, and create, edit, reorder and delete playlists including their cover art. Needs a Spotify app's client ID and secret; authorization runs once through a loopback callback on 127.0.0.1:8888 and the refresh token is stored owner-readable under ~/.spotify-mcp.",
   "author": {
@@ -17,13 +17,22 @@
   "homepage": "https://github.com/imprvhub/mcp-claude-spotify",
   "documentation": "https://github.com/imprvhub/mcp-claude-spotify#readme",
   "license": "MPL-2.0",
-  "keywords": ["spotify", "music", "playlists", "playback", "oauth", "mcp"],
+  "keywords": [
+    "spotify",
+    "music",
+    "playlists",
+    "playback",
+    "oauth",
+    "mcp"
+  ],
   "server": {
     "type": "node",
     "entry_point": "build/index.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/build/index.js"],
+      "args": [
+        "${__dirname}/build/index.js"
+      ],
       "env": {
         "SPOTIFY_CLIENT_ID": "${user_config.spotify_client_id}",
         "SPOTIFY_CLIENT_SECRET": "${user_config.spotify_client_secret}"
@@ -46,6 +55,8 @@
     }
   },
   "compatibility": {
-    "runtimes": { "node": ">=20" }
+    "runtimes": {
+      "node": ">=20"
+    }
   }
 }

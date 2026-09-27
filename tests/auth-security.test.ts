@@ -5,6 +5,7 @@
  * check, and a token file written world-readable.
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import { statesMatch, writeTokenFile, authorizeUrl, TOKEN_PATH } from '../index.js';
 
 describe('OAuth state validation', () => {
@@ -25,17 +26,10 @@ describe('OAuth state validation', () => {
 });
 
 describe('token file permissions', () => {
-  const existing = fs.existsSync(TOKEN_PATH) ? fs.readFileSync(TOKEN_PATH) : null;
-  const existingMode = existing ? fs.statSync(TOKEN_PATH).mode : null;
-
-  afterAll(() => {
-    // Leave a developer's real token file exactly as it was.
-    if (existing) {
-      fs.writeFileSync(TOKEN_PATH, existing);
-      if (existingMode !== null) fs.chmodSync(TOKEN_PATH, existingMode & 0o777);
-    } else if (fs.existsSync(TOKEN_PATH)) {
-      fs.rmSync(TOKEN_PATH);
-    }
+  it('stays out of the real home directory', () => {
+    // `npm test` runs jest with HOME pointed at a scratch directory.
+    expect(TOKEN_PATH.startsWith(os.homedir())).toBe(true);
+    expect(TOKEN_PATH.startsWith(os.userInfo().homedir)).toBe(false);
   });
 
   it('writes the refresh token readable by its owner only', () => {

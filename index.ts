@@ -295,7 +295,7 @@ function getPlaylistItemTotal(playlist: SpotifyPlaylist): number | string {
 const server = new Server(
   {
     name: "spotify-mcp",
-    version: "0.6.0",
+    version: "0.7.0",
   },
   {
     capabilities: {

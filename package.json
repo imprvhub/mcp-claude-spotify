@@ -1,6 +1,6 @@
 {
   "name": "mcp-claude-spotify",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Model Context Protocol server for Spotify using Claude Desktop",
   "main": "build/index.js",
   "type": "module",
@@ -8,8 +8,8 @@
     "build": "tsc",
     "start": "node build/index.js",
     "dev": "tsc --watch",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"
+    "test": "HOME=\"$(mktemp -d)\" NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:coverage": "HOME=\"$(mktemp -d)\" NODE_OPTIONS=--experimental-vm-modules jest --coverage"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.1",

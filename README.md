@@ -282,6 +282,9 @@ The MCP server runs as a child process managed by Claude Desktop. When Claude is
   stops. Earlier versions ran `lsof -i:8888 -t | xargs kill -9` (and a `taskkill`
   equivalent on Windows), SIGKILLing whatever unrelated process held that very common
   development port.
+- **IDs in tool arguments are validated.** Track, playlist and device IDs go into API paths
+  and query strings, so only plain Spotify IDs are accepted; anything else is rejected before a
+  request is built.
 - **The callback listens on loopback only** (`127.0.0.1`). The previous express listener
   bound every network interface, so anyone on the same network could reach `/login` and
   `/callback`. Containers can widen it with `AUTH_BIND_HOST=0.0.0.0`.
