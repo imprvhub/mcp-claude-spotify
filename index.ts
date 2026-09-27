@@ -1800,6 +1800,16 @@ async function main() {
 
     // Set up clean shutdown handlers
     setupCleanupHandlers();
+
+    // Opt-in: authorize at startup when no tokens are stored. Meant for a one-off setup
+    // run from a terminal; off by default so a client launching the server in the
+    // background never opens a browser unasked.
+    if (!tokensLoaded && /^(1|true|yes)$/i.test(process.env.SPOTIFY_AUTO_AUTH ?? "")) {
+      console.error("No stored tokens and SPOTIFY_AUTO_AUTH is set; starting authorization...");
+      startAuthServer()
+        .then(() => console.error("Authorization complete. Tokens saved; you can stop this process."))
+        .catch((error) => console.error("Authorization failed:", error instanceof Error ? error.message : error));
+    }
   } catch (error) {
     console.error("Error connecting to transport:", error);
     throw error;

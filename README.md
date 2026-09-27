@@ -101,17 +101,26 @@ Save these credentials as you'll need them for configuration.
 
 There are two ways to run the MCP server:
 
-### Option 1: Running manually (recommended for first-time setup and troubleshooting)
+### Option 1: Authorize once from a terminal (first-time setup)
 
-1. Open a terminal or command prompt
-2. Navigate to the project directory
-3. Run the server directly:
+Claude Desktop starts its own copy of the server, so a server left running in a terminal is
+not the one Claude talks to. What a terminal run is useful for is authorizing once: with
+`SPOTIFY_AUTO_AUTH=true` and no stored tokens, the server opens the Spotify login in your
+browser as soon as it starts.
 
 ```bash
+SPOTIFY_CLIENT_ID=your_client_id \
+SPOTIFY_CLIENT_SECRET=your_client_secret \
+SPOTIFY_AUTO_AUTH=true \
 node build/index.js
 ```
 
-Keep this terminal window open while using Claude Desktop. The server will run until you close the terminal.
+Approve the request in the browser. Once the terminal prints "Authorization complete",
+stop the process with Ctrl+C. The token is saved to `~/.spotify-mcp/tokens.json`, and the
+copy Claude Desktop starts will pick it up.
+
+You can skip this step entirely and ask Claude to "authenticate with Spotify" instead, which
+runs the `auth-spotify` tool and opens the same login page.
 
 ### Option 2: Auto-starting with Claude Desktop (recommended for regular use)
 
