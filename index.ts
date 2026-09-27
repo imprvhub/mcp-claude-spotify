@@ -196,6 +196,14 @@ console.error(tokensLoaded ?
  */
 // Second isPortInUse definition removed to fix duplicate function error
 
+/**
+ * Spotify track, playlist and device IDs are plain alphanumeric strings. They are
+ * interpolated into API paths and query strings, so anything else is rejected before a
+ * request is built: a deviceId of "x&foo=bar" added query parameters to the play call,
+ * and a playlistId of ".." re-pointed the request path.
+ */
+const spotifyId = z.string().regex(/^[A-Za-z0-9]{1,64}$/, "must be a Spotify ID (letters and digits only)");
+
 const SearchSchema = z.object({
   query: z.string(),
   type: z.enum(["track", "album", "artist", "playlist"]).default("track"),
@@ -203,8 +211,8 @@ const SearchSchema = z.object({
 });
 
 const PlayTrackSchema = z.object({
-  trackId: z.string(),
-  deviceId: z.string().optional(),
+  trackId: spotifyId,
+  deviceId: spotifyId.optional(),
 });
 
 const CreatePlaylistSchema = z.object({
@@ -214,8 +222,8 @@ const CreatePlaylistSchema = z.object({
 });
 
 const AddTracksSchema = z.object({
-  playlistId: z.string(),
-  trackIds: z.array(z.string()),
+  playlistId: spotifyId,
+  trackIds: z.array(spotifyId),
 });
 
 const GetTopTracksSchema = z.object({
@@ -230,22 +238,22 @@ const GetUserPlaylistsSchema = z.object({
 });
 
 const GetPlaylistTracksSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyId,
   limit: z.coerce.number().min(1).max(50).default(20),
   offset: z.coerce.number().min(0).default(0),
 });
 
 const DeletePlaylistSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyId,
 });
 
 const RemoveTracksFromPlaylistSchema = z.object({
-  playlistId: z.string(),
-  trackIds: z.array(z.string()),
+  playlistId: spotifyId,
+  trackIds: z.array(spotifyId),
 });
 
 const UpdatePlaylistSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyId,
   name: z.string().optional(),
   description: z.string().optional(),
   public: z.preprocess((v) => v === "true" ? true : v === "false" ? false : v, z.boolean().optional()),
@@ -253,16 +261,16 @@ const UpdatePlaylistSchema = z.object({
 });
 
 const GetPlaylistCoverSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyId,
 });
 
 const UploadPlaylistCoverSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyId,
   imageBase64: z.string(),
 });
 
 const ReorderPlaylistTracksSchema = z.object({
-  playlistId: z.string(),
+  playlistId: spotifyId,
   rangeStart: z.coerce.number().min(0),
   insertBefore: z.coerce.number().min(0),
   rangeLength: z.coerce.number().min(1).default(1),
@@ -1864,4 +1872,4 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   });
 }
 
-export { statesMatch, writeTokenFile, authorizeUrl, SPOTIFY_SCOPES, TOKEN_PATH };
+export { statesMatch, writeTokenFile, authorizeUrl, SPOTIFY_SCOPES, TOKEN_PATH, spotifyId };
