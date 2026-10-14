@@ -12,7 +12,7 @@
     "test:coverage": "HOME=\"$(mktemp -d)\" NODE_OPTIONS=--experimental-vm-modules jest --coverage"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.1",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "axios": "^1.20.0",
     "dotenv": "^18.0.4",
     "open": "^11.0.4",
